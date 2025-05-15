@@ -1,0 +1,21 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+
+# IntelliJ IDEA
+*.iml
+*.idea/
+
+# Dart/Flutter
+.pub/
+pubspec.lock
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# temp каталог, находящийся в корне проекта, исключен из git
+!temp/
