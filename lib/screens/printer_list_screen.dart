@@ -54,11 +54,11 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                     children: [
                       _row('№', p.number.toString()),
                       _row('Модель', p.model.name),
-                      _row('IP', p.ip),
-                      _row('Порт', p.port),
                       _row('Статус', p.status.name),
-                      _row('UID', p.uid),
-                      _row('RM', p.rm),
+                      _row('Адрес', '${p.ip}:${p.port}'),
+                      if (p.rm.trim().isNotEmpty)
+                        _row('',
+                            p.rm), // RM уже включает наименование и описание
                     ],
                   ),
                 ),
@@ -74,11 +74,15 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+          if (label.isNotEmpty)
+            Text('$label: ',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 14)),
+          ),
         ],
       ),
     );
