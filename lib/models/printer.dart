@@ -1,55 +1,3 @@
-class Printer {
-  int number;
-  int modelCode;
-  String uid;
-  String rm;
-  String ip;
-  String port;
-  int statusCode;
-
-  Printer({
-    required this.number,
-    required this.modelCode,
-    required this.uid,
-    required this.rm,
-    required this.ip,
-    required this.port,
-    required this.statusCode,
-  });
-
-  factory Printer.fromJson(Map<String, dynamic> json) {
-    return Printer(
-      number: json['number'],
-      modelCode: json['model'],
-      uid: json['uid'],
-      rm: json['rm'],
-      ip: json['ip'],
-      port: json['port'],
-      statusCode: json['status'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'number': number,
-      'model': modelCode,
-      'uid': uid,
-      'rm': rm,
-      'ip': ip,
-      'port': port,
-      'status': statusCode,
-    };
-  }
-
-  PrinterStatus get status {
-    return PrinterStatus.values[statusCode - 1];
-  }
-
-  PrinterModel get model {
-    return PrinterModel.values[modelCode - 1];
-  }
-}
-
 enum PrinterStatus {
   connected,
   inWork,
@@ -76,6 +24,19 @@ extension PrinterStatusExtension on PrinterStatus {
         return 'В работе';
       case PrinterStatus.notWorking:
         return 'Не в работе';
+    }
+  }
+
+  static PrinterStatus fromCode(int code) {
+    switch (code) {
+      case 1:
+        return PrinterStatus.connected;
+      case 2:
+        return PrinterStatus.inWork;
+      case 9:
+        return PrinterStatus.notWorking;
+      default:
+        return PrinterStatus.notWorking;
     }
   }
 }
@@ -113,4 +74,64 @@ extension PrinterModelExtension on PrinterModel {
         return 'Неизвестна';
     }
   }
+
+  static PrinterModel fromCode(int code) {
+    switch (code) {
+      case 1:
+        return PrinterModel.markemImaje9040;
+      case 2:
+        return PrinterModel.markemImaje9410;
+      case 3:
+        return PrinterModel.markemImaje9450;
+      default:
+        return PrinterModel.unknown;
+    }
+  }
+}
+
+class Printer {
+  final int number;
+  final int modelCode;
+  final String ip;
+  final String port;
+  final String uid;
+  final String rm;
+  final int statusCode;
+
+  Printer({
+    required this.number,
+    required this.modelCode,
+    required this.ip,
+    required this.port,
+    required this.uid,
+    required this.rm,
+    required this.statusCode,
+  });
+
+  factory Printer.fromJson(Map<String, dynamic> json) {
+    return Printer(
+      number: json['number'],
+      modelCode: json['model'],
+      ip: json['ip'],
+      port: json['port'],
+      uid: json['uid'],
+      rm: json['rm'] ?? '',
+      statusCode: json['status'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'number': number,
+      'model': modelCode,
+      'ip': ip,
+      'port': port,
+      'uid': uid,
+      'rm': rm,
+      'status': statusCode,
+    };
+  }
+
+  PrinterStatus get status => PrinterStatusExtension.fromCode(statusCode);
+  PrinterModel get model => PrinterModelExtension.fromCode(modelCode);
 }

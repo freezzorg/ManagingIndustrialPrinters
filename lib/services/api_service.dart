@@ -1,36 +1,91 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:mip/models/printer.dart';
+
 class ApiService {
-  Future<List<Printer>> getAllPrinters() async {
-    final response = await http.get(Uri.parse('https://example.com/printers'));
+  final String baseUrl = 'http://10.10.8.21:21010';
 
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
-      return jsonData.map((printer) => Printer.fromJson(printer)).toList();
-    } else {
-      throw Exception('Failed to load printers');
-    }
-  }
+  /// Получить принтер по номеру (поиск через UID/ID по соглашению сервиса)
+  Future<Printer> getPrinterByNumber(int number) async {
+    final body = jsonEncode({
+      'cmdtype': 'requesttodb',
+      'cmdname': 'GetAllPrinters',
+    });
 
-  Future<void> bindPrinter(Printer printer) async {
     final response = await http.post(
-      Uri.parse('https://example.com/bind-printer'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'number': printer.number,
-        'model': printer.model.code,
-        'uid': printer.uid,
-        'rm': printer.rm,
-        'ip': printer.ip,
-        'port': printer.port,
-        'status': printer.status.code,
-      }),
+      Uri.parse('$baseUrl/'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
     );
 
     if (response.statusCode == 200) {
-      // принтер привязан
+      final decoded = jsonDecode(response.body);
+      final printers = (decoded['response'] as List)
+          .map((json) => Printer.fromJson(json))
+          .toList();
+      return printers.firstWhere((p) => p.number == number);
     } else {
-      // ошибка
+      throw Exception('Не удалось получить принтер');
+    }
+  }
+
+  Future<List<Printer>> getAllPrinters() async {
+    final body = jsonEncode({
+      'cmdtype': 'requesttodb',
+      'cmdname': 'GetAllPrinters',
+    });
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      final printers = (decoded['response'] as List)
+          .map((json) => Printer.fromJson(json))
+          .toList();
+      return printers;
+    } else {
+      throw Exception('Ошибка получения принтеров');
+    }
+  }
+
+  /// Обновить данные принтера в базе
+  Future<void> updatePrinter({
+    required int number,
+    required int model,
+    required String ip,
+    required String port,
+    required String uid,
+    required String rm,
+    required int status,
+  }) async {
+    final printer = {
+      'number': number,
+      'model': model,
+      'ip': ip,
+      'port': port,
+      'uid': uid,
+      'rm': rm,
+      'status': status,
+    };
+
+    final body = jsonEncode({
+      'cmdtype': 'requesttodb',
+      'cmdname': 'UpdPrinter',
+      'cmdbody': jsonEncode(printer),
+    });
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка обновления принтера');
     }
   }
 }
