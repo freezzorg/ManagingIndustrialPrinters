@@ -43,6 +43,7 @@ class PrinterListScreen extends StatelessWidget {
     );
   }
 
+  // ...
   void _bindPrinter() async {
     try {
       await Provider.of<ApiService>(context, listen: false).bindPrinter(

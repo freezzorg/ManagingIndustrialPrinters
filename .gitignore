@@ -18,4 +18,4 @@ build/
 .flutter-plugins-dependencies
 
 # temp каталог, находящийся в корне проекта, исключен из git
-!temp/
+temp/
