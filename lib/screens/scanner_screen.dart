@@ -53,8 +53,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final api = Provider.of<ApiService>(context, listen: false);
 
     try {
-      // TODO: декодировать printerData (номер, модель, IP, порт, статус)
-      // Пример:
+      // декодировать printerData (номер, модель, IP, порт, статус)
+      // пример: "1, 1, 192.168.1.1, 9100, 1"
       final parts = printerData!.split(',').map((e) => e.trim()).toList();
       final number = int.parse(parts[0]);
       final model = int.parse(parts[1]);
@@ -92,7 +92,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   String _extractRM(String data) {
-    // TODO: извлечение RM из QR кода линии
+    // извлечение RM из QR кода линии
     // Пример: "59809bc5..., PM01, Линия ..." → PM01
     final parts = data.split(',');
     return parts.length >= 2 ? parts[1].trim() : '';
