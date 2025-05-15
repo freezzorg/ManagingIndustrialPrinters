@@ -9,13 +9,16 @@
 *.idea/
 
 # Dart/Flutter
-.pub/
-pubspec.lock
+android/
 build/
+.pub/
 .dart_tool/
+.metadata
 .packages
 .flutter-plugins
 .flutter-plugins-dependencies
+pubspec.lock
+analysis_options.yaml
 
 # temp каталог, находящийся в корне проекта, исключен из git
 temp/

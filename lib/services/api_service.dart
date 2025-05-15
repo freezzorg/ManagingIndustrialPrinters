@@ -6,7 +6,7 @@ class ApiService {
   final String baseUrl = 'http://10.10.8.21:21010';
 
   /// Получить принтер по номеру (поиск через UID/ID по соглашению сервиса)
-  Future<Printer> getPrinterByNumber(int number) async {
+  Future<Printer?> getPrinterByNumber(int number) async {
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
       'cmdname': 'GetAllPrinters',
@@ -29,7 +29,8 @@ class ApiService {
     }
   }
 
-  Future<List<Printer>> getAllPrinters() async {
+
+  Future<List<Printer>> getPrinters() async {
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
       'cmdname': 'GetAllPrinters',

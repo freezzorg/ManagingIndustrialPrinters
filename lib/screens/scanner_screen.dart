@@ -1,170 +1,197 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:mip/services/api_service.dart';
 import 'package:mip/models/printer.dart';
 
 class ScannerScreen extends StatefulWidget {
+  const ScannerScreen({super.key});
+
   @override
-  _ScannerScreenState createState() => _ScannerScreenState();
+  State<ScannerScreen> createState() => _ScannerScreenState();
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
-
+  final MobileScannerController cameraController = MobileScannerController();
   String? lineData;
   String? printerData;
-  bool isProcessing = false;
+  bool processing = false;
 
   @override
-  void reassemble() {
-    super.reassemble();
-    controller?.pauseCamera();
-    controller?.resumeCamera();
-  }
-
-  void _onQRViewCreated(QRViewController ctrl) {
-    controller = ctrl;
-    controller!.scannedDataStream.listen((scanData) async {
-      if (isProcessing) return;
-
-      setState(() => isProcessing = true);
-
-      try {
-        final code = scanData.code ?? '';
-
-        if (lineData == null) {
-          // Сканировали линию
-          setState(() => lineData = code);
-        } else if (printerData == null) {
-          // Сканировали принтер
-          setState(() => printerData = code);
-
-          await _handleBinding();
-        }
-      } finally {
-        setState(() => isProcessing = false);
-      }
-    });
-  }
-
-  Future<void> _handleBinding() async {
-    final api = Provider.of<ApiService>(context, listen: false);
-
-    try {
-      // декодировать printerData (номер, модель, IP, порт, статус)
-      // пример: "1, 1, 192.168.1.1, 9100, 1"
-      final parts = printerData!.split(',').map((e) => e.trim()).toList();
-      final number = int.parse(parts[0]);
-      final model = int.parse(parts[1]);
-      final ip = parts[2];
-      final port = parts[3];
-      final status = int.parse(parts[4]);
-
-      // Получить текущий принтер из базы через API
-      final currentPrinter = await api.getPrinterByNumber(number);
-
-      if (currentPrinter.statusCode == 9) {
-        // Принтер был "не в работе" — просто обновляем
-        await api.updatePrinter(
-          number: number,
-          model: model,
-          ip: ip,
-          port: port,
-          uid: lineData!,
-          rm: _extractRM(lineData!),
-          status: status,
-        );
-        _showMessage('Принтер привязан');
-      } else {
-        // Принтер уже привязан — спрашиваем пользователя
-        _askRebind(currentPrinter, number, model, ip, port, status);
-      }
-    } catch (e) {
-      _showMessage('Ошибка: $e');
-    } finally {
-      setState(() {
-        lineData = null;
-        printerData = null;
-      });
-    }
-  }
-
-  String _extractRM(String data) {
-    // извлечение RM из QR кода линии
-    // Пример: "59809bc5..., PM01, Линия ..." → PM01
-    final parts = data.split(',');
-    return parts.length >= 2 ? parts[1].trim() : '';
-  }
-
-  void _askRebind(Printer current, int number, int model, String ip, String port, int status) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Принтер уже привязан'),
-        content: Text('Текущая линия: ${current.rm}. Перепривязать?'),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Сканирование'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Отмена'),
+          IconButton(
+            icon: const Icon(
+                Icons.flash_on), // или flash_off, если хочешь визуальную смену
+            onPressed: () => cameraController.toggleTorch(),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final api = Provider.of<ApiService>(context, listen: false);
-              await api.updatePrinter(
-                number: number,
-                model: model,
-                ip: ip,
-                port: port,
-                uid: lineData!,
-                rm: _extractRM(lineData!),
-                status: status,
-              );
-              _showMessage('Принтер перепривязан');
-            },
-            child: Text('Перепривязать'),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            flex: 3,
+            child: MobileScanner(
+              controller: cameraController,
+              onDetect: (capture) {
+                if (processing) return;
+                for (final barcode in capture.barcodes) {
+                  final code = barcode.rawValue;
+                  if (code == null) continue;
+
+                  setState(() {
+                    if (lineData == null) {
+                      lineData = code;
+                    } else if (printerData == null) {
+                      printerData = code;
+                      cameraController.stop();
+                    }
+                  });
+                  break;
+                }
+              },
+            ),
           ),
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  Text('Линия: ${lineData ?? "не отсканировано"}'),
+                  Text('Принтер: ${printerData ?? "не отсканировано"}'),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed:
+                        (lineData != null && printerData != null && !processing)
+                            ? _bindPrinter
+                            : null,
+                    child: processing
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Привязать'),
+                  ),
+                  TextButton(
+                    onPressed: _reset,
+                    child: const Text('Сброс'),
+                  ),
+                ],
+              ),
+            ),
+          )
         ],
       ),
     );
   }
 
-  void _showMessage(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _reset() {
+    setState(() {
+      lineData = null;
+      printerData = null;
+      processing = false;
+    });
+    cameraController.start();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Сканирование')),
-      body: Column(
-        children: [
-          Expanded(
-            flex: 2,
-            child: QRView(
-              key: qrKey,
-              onQRViewCreated: _onQRViewCreated,
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _bindPrinter() async {
+    setState(() => processing = true);
+    final api = Provider.of<ApiService>(context, listen: false);
+
+    try {
+      final lineUid = _parseLineUid(lineData!);
+      final lineRm = _parseLineRm(lineData!);
+      final printerInfo = _parsePrinterInfo(printerData!);
+
+      final printerFromServer =
+          await api.getPrinterByNumber(printerInfo.number);
+
+      if (printerFromServer != null &&
+          (printerFromServer.statusCode == 1 ||
+              printerFromServer.statusCode == 2)) {
+        final action = await _showRebindDialog(printerFromServer.rm);
+        if (action == RebindAction.cancel) {
+          _reset();
+          return;
+        }
+      }
+
+      await api.updatePrinter(
+        number: printerInfo.number,
+        model: printerInfo.modelCode,
+        ip: printerInfo.ip,
+        port: printerInfo.port,
+        uid: lineUid,
+        rm: lineRm,
+        status: printerInfo.statusCode,
+      );
+
+      _showMessage('Принтер успешно привязан');
+      _reset();
+    } catch (e) {
+      _showMessage('Ошибка: $e');
+      _reset();
+    } finally {
+      setState(() => processing = false);
+    }
+  }
+
+  Future<RebindAction> _showRebindDialog(String? currentRm) async {
+    return showDialog<RebindAction>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Принтер уже привязан'),
+          content:
+              Text('Принтер уже привязан к линии $currentRm. Перепривязать?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(RebindAction.cancel),
+              child: const Text('Отмена'),
             ),
-          ),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(lineData == null ? 'Ожидание линии...' : 'Линия: $lineData'),
-                Text(printerData == null ? 'Ожидание принтера...' : 'Принтер: $printerData'),
-              ],
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(RebindAction.rebind),
+              child: const Text('Перепривязать'),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
+    ).then((value) => value ?? RebindAction.cancel);
+  }
+
+  String _parseLineUid(String qr) {
+    return qr.split(',').first.trim();
+  }
+
+  String _parseLineRm(String qr) {
+    final parts = qr.split(',');
+    return parts.length > 1 ? parts[1].trim() : '';
+  }
+
+  Printer _parsePrinterInfo(String qr) {
+    final parts = qr.split(',');
+    return Printer(
+      number: int.parse(parts[0].trim()),
+      modelCode: int.parse(parts[1].trim()),
+      ip: parts[2].trim(),
+      port: parts[3].trim(),
+      statusCode: int.parse(parts[4].trim()),
+      uid: '',
+      rm: '',
     );
   }
 
   @override
   void dispose() {
-    controller?.dispose();
+    cameraController.dispose();
     super.dispose();
   }
 }
+
+enum RebindAction { cancel, rebind }
