@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:mip/services/api_service.dart';
 import 'package:mip/models/printer.dart';
@@ -23,6 +24,10 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   PrinterStatus? _selectedStatus;
 
   bool _isSubmitting = false;
+
+  final _ipRegex = RegExp(
+    r'^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$',
+  );
 
   @override
   void dispose() {
@@ -52,13 +57,65 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
           child: ListView(
             children: [
               _buildTextField(
-                  _numberController, 'Номер принтера', TextInputType.number),
-              _buildModelDropdown(),
-              _buildTextField(_ipController, 'IP-адрес', TextInputType.text),
-              _buildTextField(_portController, 'Порт', TextInputType.number),
-              _buildTextField(_uidController, 'UID линии', TextInputType.text),
-              _buildTextField(_rmController, 'PM линии', TextInputType.text),
-              _buildStatusDropdown(),
+                controller: _numberController,
+                label: 'Номер принтера',
+                keyboardType: TextInputType.number,
+              ),
+              _buildDropdown<PrinterModel>(
+                label: 'Модель',
+                value: _selectedModel,
+                items: PrinterModel.values
+                    .where((m) => m != PrinterModel.unknown)
+                    .toList(),
+                onChanged: (value) => setState(() => _selectedModel = value),
+                getLabel: (model) => model.name,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TextFormField(
+                  controller: _ipController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'IP-адрес',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Обязательное поле';
+                    }
+                    if (!_ipRegex.hasMatch(value.trim())) {
+                      return 'Некорректный IP-адрес';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              _buildTextField(
+                controller: _portController,
+                label: 'Порт',
+                keyboardType: TextInputType.number,
+              ),
+              _buildTextField(
+                controller: _uidController,
+                label: 'UID линии',
+                keyboardType: TextInputType.text,
+              ),
+              _buildTextField(
+                controller: _rmController,
+                label: 'PM линии',
+                keyboardType: TextInputType.text,
+              ),
+              _buildDropdown<PrinterStatus>(
+                label: 'Статус',
+                value: _selectedStatus,
+                items: PrinterStatus.values,
+                onChanged: (value) => setState(() => _selectedStatus = value),
+                getLabel: (status) => status.name,
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
@@ -74,8 +131,11 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      TextInputType keyboardType) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required TextInputType keyboardType,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -92,45 +152,29 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     );
   }
 
-  Widget _buildModelDropdown() {
+  Widget _buildDropdown<T>({
+    required String label,
+    required T? value,
+    required List<T> items,
+    required String Function(T) getLabel,
+    required ValueChanged<T?> onChanged,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<PrinterModel>(
-        value: _selectedModel,
-        items: PrinterModel.values
-            .where((m) => m != PrinterModel.unknown)
-            .map((model) => DropdownMenuItem(
-                  value: model,
-                  child: Text(model.name),
+      child: DropdownButtonFormField<T>(
+        value: value,
+        items: items
+            .map((item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(getLabel(item)),
                 ))
             .toList(),
-        onChanged: (model) => setState(() => _selectedModel = model),
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          labelText: 'Модель',
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: label,
         ),
-        validator: (value) => value == null ? 'Выберите модель принтера' : null,
-      ),
-    );
-  }
-
-  Widget _buildStatusDropdown() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<PrinterStatus>(
-        value: _selectedStatus,
-        items: PrinterStatus.values
-            .map((status) => DropdownMenuItem(
-                  value: status,
-                  child: Text(status.name),
-                ))
-            .toList(),
-        onChanged: (status) => setState(() => _selectedStatus = status),
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          labelText: 'Статус',
-        ),
-        validator: (value) => value == null ? 'Выберите статус принтера' : null,
+        validator: (value) => value == null ? 'Обязательное поле' : null,
       ),
     );
   }
