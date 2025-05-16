@@ -29,7 +29,7 @@ class ApiService {
     }
   }
 
-
+  /// Получить список принтеров
   Future<List<Printer>> getPrinters() async {
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
