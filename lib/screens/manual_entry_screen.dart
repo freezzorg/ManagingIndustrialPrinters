@@ -43,7 +43,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ручной ввод'),
+        title: const Text('Добавить принтер'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

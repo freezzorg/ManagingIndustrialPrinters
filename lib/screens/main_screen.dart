@@ -12,6 +12,7 @@ class MainScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text('Управление принтерами'),
       ),
       body: Padding(
@@ -27,16 +28,16 @@ class MainScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/manual-entry'),
-              icon: const Icon(Icons.edit),
-              label: const Text('Ручной ввод'),
+              onPressed: () => Navigator.pushNamed(context, '/printers'),
+              icon: const Icon(Icons.list),
+              label: const Text('Список принтеров'),
               style: buttonStyle,
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/printers'),
-              icon: const Icon(Icons.list),
-              label: const Text('Список принтеров'),
+              onPressed: () => Navigator.pushNamed(context, '/manual-entry'),
+              icon: const Icon(Icons.add),
+              label: const Text('Добавить принтер'),
               style: buttonStyle,
             ),
           ],
