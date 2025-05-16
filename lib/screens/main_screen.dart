@@ -36,7 +36,7 @@ class MainScreen extends StatelessWidget {
                   'Настройки',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 22,
                   ),
                 ),
               ),
@@ -53,7 +53,7 @@ class MainScreen extends StatelessWidget {
                 child: TextField(
                   controller: baseUrlController,
                   decoration: const InputDecoration(
-                    labelText: 'Base URL API',
+                    labelText: 'PrintComm URL API',
                     border: OutlineInputBorder(),
                     hintText: 'http://10.10.8.21:21010',
                   ),
@@ -67,12 +67,12 @@ class MainScreen extends StatelessWidget {
                     if (newUrl.isNotEmpty) {
                       apiService.updateBaseUrl(newUrl);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Base URL сохранён')),
+                        const SnackBar(content: Text('PrintComm URL сохранён')),
                       );
                       Navigator.of(context).pop(); // Закрыть Drawer
                     }
                   },
-                  child: const Text('Сохранить Base URL'),
+                  child: const Text('Сохранить PrintComm URL'),
                 ),
               ),
             ],
