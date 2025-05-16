@@ -28,15 +28,16 @@ class MainScreen extends StatelessWidget {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              const DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Colors.indigo,
-                ),
-                child: Text(
+              Container(
+                height: 100, // уменьшенная высота
+                color: Colors.indigo,
+                alignment: Alignment.center,
+                child: const Text(
                   'Настройки',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
