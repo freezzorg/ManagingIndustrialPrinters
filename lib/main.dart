@@ -5,11 +5,15 @@ import 'package:mip/screens/scanner_screen.dart';
 import 'package:mip/screens/manual_entry_screen.dart';
 import 'package:mip/screens/printer_list_screen.dart';
 import 'package:mip/services/api_service.dart';
+import 'package:mip/providers/theme_provider.dart';
 
 void main() {
   runApp(
-    Provider<ApiService>(
-      create: (_) => ApiService(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ApiService()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -20,11 +24,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'Принтеры',
+      themeMode: themeProvider.themeMode,
       theme: ThemeData(
         primarySwatch: Colors.indigo,
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        brightness: Brightness.light,
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(fontSize: 16),
+        ),
+      ),
+      darkTheme: ThemeData(
+        primarySwatch: Colors.indigo,
+        brightness: Brightness.dark,
         textTheme: const TextTheme(
           bodyMedium: TextStyle(fontSize: 16),
         ),

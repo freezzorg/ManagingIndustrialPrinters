@@ -1,11 +1,18 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mip/models/printer.dart';
 
-class ApiService {
-  final String baseUrl = 'http://10.10.8.21:21010';
+class ApiService extends ChangeNotifier {
+  String _baseUrl = 'http://10.10.8.21:21010';
 
-  /// Получить принтер по номеру (поиск через UID/ID по соглашению сервиса)
+  String get baseUrl => _baseUrl;
+
+  void updateBaseUrl(String newUrl) {
+    _baseUrl = newUrl;
+    notifyListeners();
+  }
+
   Future<Printer?> getPrinterByNumber(int number) async {
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
@@ -13,7 +20,7 @@ class ApiService {
     });
 
     final response = await http.post(
-      Uri.parse('$baseUrl/'),
+      Uri.parse('$_baseUrl/'),
       headers: {'Content-Type': 'application/json'},
       body: body,
     );
@@ -29,7 +36,6 @@ class ApiService {
     }
   }
 
-  /// Получить список принтеров
   Future<List<Printer>> getPrinters() async {
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
@@ -37,7 +43,7 @@ class ApiService {
     });
 
     final response = await http.post(
-      Uri.parse('$baseUrl/'),
+      Uri.parse('$_baseUrl/'),
       headers: {'Content-Type': 'application/json'},
       body: body,
     );
@@ -53,7 +59,6 @@ class ApiService {
     }
   }
 
-  /// Обновить данные принтера в базе
   Future<void> updatePrinter({
     required int number,
     required int model,
@@ -80,7 +85,7 @@ class ApiService {
     });
 
     final response = await http.post(
-      Uri.parse('$baseUrl/'),
+      Uri.parse('$_baseUrl/'),
       headers: {'Content-Type': 'application/json'},
       body: body,
     );
