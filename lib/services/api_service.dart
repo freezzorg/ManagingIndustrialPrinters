@@ -2,15 +2,34 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mip/models/printer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService extends ChangeNotifier {
+  static const _prefsBaseUrlKey = 'baseUrl';
+
   String _baseUrl = 'http://10.10.8.21:21010';
 
   String get baseUrl => _baseUrl;
 
-  void updateBaseUrl(String newUrl) {
+  ApiService() {
+    _loadBaseUrl();
+  }
+
+  Future<void> _loadBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString(_prefsBaseUrlKey);
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      _baseUrl = savedUrl;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateBaseUrl(String newUrl) async {
     _baseUrl = newUrl;
     notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsBaseUrlKey, newUrl);
   }
 
   Future<Printer?> getPrinterByNumber(int number) async {
