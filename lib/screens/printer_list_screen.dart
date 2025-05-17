@@ -12,6 +12,7 @@ class PrinterListScreen extends StatefulWidget {
 
 class _PrinterListScreenState extends State<PrinterListScreen> {
   late Future<List<Printer>> _futurePrinters;
+  List<Printer> _printers = [];
 
   @override
   void initState() {
@@ -22,13 +23,23 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
   void _loadPrinters() {
     final api = Provider.of<ApiService>(context, listen: false);
     _futurePrinters = api.getPrinters();
+    _futurePrinters.then((value) => _printers = value);
   }
 
   Future<void> _navigateToAddPrinter() async {
-    final result = await Navigator.pushNamed(context, '/manual-entry');
+    final nextNumber = _printers.isEmpty
+        ? 1
+        : (_printers.map((e) => e.number).reduce((a, b) => a > b ? a : b)) + 1;
+
+    final result = await Navigator.pushNamed(
+      context,
+      '/manual-entry',
+      arguments: nextNumber,
+    );
+
     if (result == true) {
       setState(() {
-        _loadPrinters(); // перезагрузка только если принтер был добавлен
+        _loadPrinters(); // Перезагрузка, если принтер был добавлен
       });
     }
   }

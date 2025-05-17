@@ -13,14 +13,23 @@ class ManualEntryScreen extends StatefulWidget {
 class _ManualEntryScreenState extends State<ManualEntryScreen> {
   final numberController = TextEditingController();
   final ipController = TextEditingController();
-  final portController = TextEditingController(text: '21010');
+  final portController = TextEditingController();
   final uidController = TextEditingController();
   final rmController = TextEditingController();
 
-  PrinterModel _selectedModel = PrinterModel.markemImaje9040;
-  PrinterStatus _selectedStatus = PrinterStatus.connected;
+  PrinterModel? _selectedModel;
+  PrinterStatus? _selectedStatus;
 
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is int) {
+      numberController.text = args.toString();
+    }
+  }
 
   bool _isValidIp(String ip) {
     final regex = RegExp(
@@ -70,10 +79,9 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                         ))
                     .toList(),
                 onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedModel = value);
-                  }
+                  setState(() => _selectedModel = value);
                 },
+                validator: (value) => value == null ? 'Выберите модель' : null,
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -123,10 +131,9 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                         ))
                     .toList(),
                 onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedStatus = value);
-                  }
+                  setState(() => _selectedStatus = value);
                 },
+                validator: (value) => value == null ? 'Выберите статус' : null,
               ),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -140,12 +147,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                     try {
                       await apiService.addPrinter(
                         number: newNumber,
-                        model: _selectedModel.code,
+                        model: _selectedModel!.code,
                         ip: ipController.text.trim(),
                         port: portController.text.trim(),
                         uid: uid,
                         rm: rmController.text.trim(),
-                        status: _selectedStatus.code,
+                        status: _selectedStatus!.code,
                       );
                       if (context.mounted) {
                         Navigator.pop(context, true);
