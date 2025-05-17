@@ -16,8 +16,21 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPrinters();
+  }
+
+  void _loadPrinters() {
     final api = Provider.of<ApiService>(context, listen: false);
     _futurePrinters = api.getPrinters();
+  }
+
+  Future<void> _navigateToAddPrinter() async {
+    final result = await Navigator.pushNamed(context, '/manual-entry');
+    if (result == true) {
+      setState(() {
+        _loadPrinters(); // перезагрузка только если принтер был добавлен
+      });
+    }
   }
 
   @override
@@ -25,6 +38,13 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Список принтеров'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Добавить принтер',
+            onPressed: _navigateToAddPrinter,
+          ),
+        ],
       ),
       body: FutureBuilder<List<Printer>>(
         future: _futurePrinters,
@@ -56,9 +76,7 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                       _row('Модель', p.model.name),
                       _row('Статус', p.status.name),
                       _row('Адрес', '${p.ip}:${p.port}'),
-                      if (p.rm.trim().isNotEmpty)
-                        _row('',
-                            p.rm), // RM уже включает наименование и описание
+                      if (p.rm.trim().isNotEmpty) _row('', p.rm),
                     ],
                   ),
                 ),
@@ -77,12 +95,11 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (label.isNotEmpty)
-            Text('$label: ',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14)),
-          ),
+            Text(
+              '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

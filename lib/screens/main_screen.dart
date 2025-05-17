@@ -98,13 +98,6 @@ class MainScreen extends StatelessWidget {
               label: const Text('Список принтеров'),
               style: buttonStyle,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/manual-entry'),
-              icon: const Icon(Icons.add),
-              label: const Text('Добавить принтер'),
-              style: buttonStyle,
-            ),
           ],
         ),
       ),
