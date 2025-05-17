@@ -23,24 +23,30 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
   void _loadPrinters() {
     final api = Provider.of<ApiService>(context, listen: false);
     _futurePrinters = api.getPrinters();
-    _futurePrinters.then((value) => _printers = value);
+    _futurePrinters.then((data) {
+      setState(() {
+        _printers = data;
+      });
+    });
+  }
+
+  Future<void> _refreshPrinters() async {
+    _loadPrinters();
   }
 
   Future<void> _navigateToAddPrinter() async {
-    final nextNumber = _printers.isEmpty
+    final maxNumber = _printers.isEmpty
         ? 1
-        : (_printers.map((e) => e.number).reduce((a, b) => a > b ? a : b)) + 1;
+        : _printers.map((p) => p.number).reduce((a, b) => a > b ? a : b) + 1;
 
     final result = await Navigator.pushNamed(
       context,
       '/manual-entry',
-      arguments: nextNumber,
+      arguments: maxNumber,
     );
 
     if (result == true) {
-      setState(() {
-        _loadPrinters(); // Перезагрузка, если принтер был добавлен
-      });
+      _refreshPrinters();
     }
   }
 
@@ -69,30 +75,36 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
           }
 
           final printers = snapshot.data!;
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: printers.length,
-            separatorBuilder: (_, __) => const Divider(),
-            itemBuilder: (context, index) {
-              final p = printers[index];
-              return Card(
-                elevation: 2,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _row('№', p.number.toString()),
-                      _row('Модель', p.model.name),
-                      _row('Статус', p.status.name),
-                      _row('Адрес', '${p.ip}:${p.port}'),
-                      if (p.rm.trim().isNotEmpty) _row('', p.rm),
-                    ],
+          _printers = printers; // сохранить актуальный список
+
+          return RefreshIndicator(
+            onRefresh: _refreshPrinters,
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(12),
+              itemCount: printers.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, index) {
+                final p = printers[index];
+                return Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _row('№', p.number.toString()),
+                        _row('Модель', p.model.name),
+                        _row('Статус', p.status.name),
+                        _row('Адрес', '${p.ip}:${p.port}'),
+                        if (p.rm.trim().isNotEmpty) _row('', p.rm),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
