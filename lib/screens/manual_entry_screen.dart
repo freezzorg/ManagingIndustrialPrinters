@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:mip/services/api_service.dart';
 import 'package:mip/models/printer.dart';
+import 'package:mip/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class ManualEntryScreen extends StatefulWidget {
   const ManualEntryScreen({super.key});
@@ -12,117 +11,155 @@ class ManualEntryScreen extends StatefulWidget {
 }
 
 class _ManualEntryScreenState extends State<ManualEntryScreen> {
+  final numberController = TextEditingController();
+  final ipController = TextEditingController();
+  final portController = TextEditingController(text: '21010');
+  final uidController = TextEditingController();
+  final rmController = TextEditingController();
+
+  PrinterModel _selectedModel = PrinterModel.markemImaje9040;
+  PrinterStatus _selectedStatus = PrinterStatus.connected;
+
   final _formKey = GlobalKey<FormState>();
 
-  final _numberController = TextEditingController();
-  final _ipController = TextEditingController();
-  final _portController = TextEditingController();
-  final _uidController = TextEditingController();
-  final _rmController = TextEditingController();
-
-  PrinterModel? _selectedModel;
-  PrinterStatus? _selectedStatus;
-
-  bool _isSubmitting = false;
-
-  final _ipRegex = RegExp(
-    r'^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$',
-  );
-
-  @override
-  void dispose() {
-    _numberController.dispose();
-    _ipController.dispose();
-    _portController.dispose();
-    _uidController.dispose();
-    _rmController.dispose();
-    super.dispose();
+  bool _isValidIp(String ip) {
+    final regex = RegExp(
+      r'^((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$',
+    );
+    return regex.hasMatch(ip);
   }
 
   @override
   Widget build(BuildContext context) {
-    final buttonStyle = ElevatedButton.styleFrom(
-      minimumSize: const Size.fromHeight(48),
-      textStyle: const TextStyle(fontSize: 18),
-    );
+    final apiService = Provider.of<ApiService>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Добавить принтер'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              _buildTextField(
-                controller: _numberController,
-                label: 'Номер принтера',
+              TextFormField(
+                controller: numberController,
+                decoration: const InputDecoration(labelText: 'Номер принтера'),
                 keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Введите номер';
+                  }
+                  final number = int.tryParse(value);
+                  if (number == null) {
+                    return 'Неверный номер';
+                  }
+                  return null;
+                },
               ),
-              _buildDropdown<PrinterModel>(
-                label: 'Модель',
+              const SizedBox(height: 8),
+              DropdownButtonFormField<PrinterModel>(
                 value: _selectedModel,
+                decoration: const InputDecoration(labelText: 'Модель'),
                 items: PrinterModel.values
-                    .where((m) => m != PrinterModel.unknown)
+                    .where((model) => model != PrinterModel.unknown)
+                    .map((model) => DropdownMenuItem(
+                          value: model,
+                          child: Text(model.name),
+                        ))
                     .toList(),
-                onChanged: (value) => setState(() => _selectedModel = value),
-                getLabel: (model) => model.name,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedModel = value);
+                  }
+                },
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: TextFormField(
-                  controller: _ipController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'IP-адрес',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Обязательное поле';
-                    }
-                    if (!_ipRegex.hasMatch(value.trim())) {
-                      return 'Некорректный IP-адрес';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              _buildTextField(
-                controller: _portController,
-                label: 'Порт',
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: ipController,
+                decoration: const InputDecoration(labelText: 'IP-адрес'),
                 keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Введите IP';
+                  }
+                  if (!_isValidIp(value)) {
+                    return 'Неверный формат IP';
+                  }
+                  return null;
+                },
               ),
-              _buildTextField(
-                controller: _uidController,
-                label: 'UID линии',
-                keyboardType: TextInputType.text,
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: portController,
+                decoration: const InputDecoration(labelText: 'Порт'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Введите порт';
+                  }
+                  return null;
+                },
               ),
-              _buildTextField(
-                controller: _rmController,
-                label: 'PM линии',
-                keyboardType: TextInputType.text,
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: uidController,
+                decoration: const InputDecoration(labelText: 'UID принтера'),
               ),
-              _buildDropdown<PrinterStatus>(
-                label: 'Статус',
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: rmController,
+                decoration: const InputDecoration(labelText: 'PM линии'),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<PrinterStatus>(
                 value: _selectedStatus,
-                items: PrinterStatus.values,
-                onChanged: (value) => setState(() => _selectedStatus = value),
-                getLabel: (status) => status.name,
+                decoration: const InputDecoration(labelText: 'Статус'),
+                items: PrinterStatus.values
+                    .map((status) => DropdownMenuItem(
+                          value: status,
+                          child: Text(status.name),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedStatus = value);
+                  }
+                },
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                style: buttonStyle,
-                child: _isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Сохранить'),
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    final newNumber = int.parse(numberController.text);
+                    final uid = uidController.text.trim().isEmpty
+                        ? '00000000-0000-0000-0000-000000000000'
+                        : uidController.text.trim();
+
+                    try {
+                      await apiService.addPrinter(
+                        number: newNumber,
+                        model: _selectedModel.code,
+                        ip: ipController.text.trim(),
+                        port: portController.text.trim(),
+                        uid: uid,
+                        rm: rmController.text.trim(),
+                        status: _selectedStatus.code,
+                      );
+                      if (context.mounted) {
+                        Navigator.pop(context, true);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+                        );
+                      }
+                    }
+                  }
+                },
+                child: const Text('Сохранить'),
               ),
             ],
           ),
@@ -131,86 +168,13 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required TextInputType keyboardType,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          labelText: label,
-        ),
-        validator: (value) => (value == null || value.trim().isEmpty)
-            ? 'Обязательное поле'
-            : null,
-      ),
-    );
-  }
-
-  Widget _buildDropdown<T>({
-    required String label,
-    required T? value,
-    required List<T> items,
-    required String Function(T) getLabel,
-    required ValueChanged<T?> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<T>(
-        value: value,
-        items: items
-            .map((item) => DropdownMenuItem<T>(
-                  value: item,
-                  child: Text(getLabel(item)),
-                ))
-            .toList(),
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          labelText: label,
-        ),
-        validator: (value) => value == null ? 'Обязательное поле' : null,
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSubmitting = true);
-
-    final api = Provider.of<ApiService>(context, listen: false);
-
-    try {
-      await api.updatePrinter(
-        number: int.parse(_numberController.text.trim()),
-        model: _selectedModel!.code,
-        ip: _ipController.text.trim(),
-        port: _portController.text.trim(),
-        uid: _uidController.text.trim(),
-        rm: _rmController.text.trim(),
-        status: _selectedStatus!.code,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Принтер обновлён')),
-      );
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
+  @override
+  void dispose() {
+    numberController.dispose();
+    ipController.dispose();
+    portController.dispose();
+    uidController.dispose();
+    rmController.dispose();
+    super.dispose();
   }
 }

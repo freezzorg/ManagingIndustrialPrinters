@@ -24,8 +24,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         title: const Text('Сканирование'),
         actions: [
           IconButton(
-            icon: const Icon(
-                Icons.flash_on), // или flash_off, если хочешь визуальную смену
+            icon: const Icon(Icons.flash_on),
             onPressed: () => cameraController.toggleTorch(),
           ),
         ],
@@ -110,7 +109,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final printerInfo = _parsePrinterInfo(printerData!);
 
       final printerFromServer =
-          await api.getPrinterByNumber(printerInfo.number);
+          await api.getPrinterByIdOrUid(id: printerInfo.number);
 
       if (printerFromServer != null &&
           (printerFromServer.statusCode == 1 ||
@@ -142,7 +141,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  Future<RebindAction> _showRebindDialog(String? currentRm) async {
+  Future<RebindAction> _showRebindDialog(String currentRm) async {
     return showDialog<RebindAction>(
       context: context,
       builder: (context) {
@@ -177,6 +176,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Printer _parsePrinterInfo(String qr) {
     final parts = qr.split(',');
     return Printer(
+      id: 0,
       number: int.parse(parts[0].trim()),
       modelCode: int.parse(parts[1].trim()),
       ip: parts[2].trim(),

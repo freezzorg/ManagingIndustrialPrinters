@@ -32,10 +32,19 @@ class ApiService extends ChangeNotifier {
     await prefs.setString(_prefsBaseUrlKey, newUrl);
   }
 
-  Future<Printer?> getPrinterByNumber(int number) async {
+  Future<Printer?> getPrinterByIdOrUid({int? id, String? uid}) async {
+    if (id == null && uid == null) {
+      throw ArgumentError('Необходимо передать либо id, либо uid принтера');
+    }
+
+    final printerQuery = <String, dynamic>{};
+    if (id != null) printerQuery['id'] = id;
+    if (uid != null) printerQuery['uid'] = uid;
+
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
-      'cmdname': 'GetAllPrinters',
+      'cmdname': 'GetPrinter',
+      'cmdbody': jsonEncode(printerQuery),
     });
 
     final response = await http.post(
@@ -46,12 +55,12 @@ class ApiService extends ChangeNotifier {
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-      final printers = (decoded['response'] as List)
-          .map((json) => Printer.fromJson(json))
-          .toList();
-      return printers.firstWhere((p) => p.number == number);
+      final data = decoded['response'];
+
+      if (data == null) return null;
+      return Printer.fromJson(data);
     } else {
-      throw Exception('Не удалось получить принтер');
+      throw Exception('Ошибка получения принтера по id/uid');
     }
   }
 
@@ -75,6 +84,43 @@ class ApiService extends ChangeNotifier {
       return printers;
     } else {
       throw Exception('Ошибка получения принтеров');
+    }
+  }
+
+  Future<void> addPrinter({
+    required int number,
+    required int model,
+    required String ip,
+    required String port,
+    required String uid,
+    required String rm,
+    required int status,
+  }) async {
+    final printer = {
+      'id': 0,
+      'number': number,
+      'model': model,
+      'ip': ip,
+      'port': port,
+      'uid': uid,
+      'rm': rm,
+      'status': status,
+    };
+
+    final body = jsonEncode({
+      'cmdtype': 'requesttodb',
+      'cmdname': 'PutPrinter',
+      'cmdbody': jsonEncode(printer),
+    });
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка добавления принтера');
     }
   }
 

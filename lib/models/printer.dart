@@ -90,6 +90,7 @@ extension PrinterModelExtension on PrinterModel {
 }
 
 class Printer {
+  final int id;
   final int number;
   final int modelCode;
   final String ip;
@@ -99,6 +100,7 @@ class Printer {
   final int statusCode;
 
   Printer({
+    required this.id,
     required this.number,
     required this.modelCode,
     required this.ip,
@@ -110,6 +112,7 @@ class Printer {
 
   factory Printer.fromJson(Map<String, dynamic> json) {
     return Printer(
+      id: json['id'] ?? 0,
       number: json['number'],
       modelCode: json['model'],
       ip: json['ip'],
@@ -122,6 +125,7 @@ class Printer {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'number': number,
       'model': modelCode,
       'ip': ip,
