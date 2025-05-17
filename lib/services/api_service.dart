@@ -87,24 +87,17 @@ class ApiService extends ChangeNotifier {
     }
   }
 
-  Future<void> addPrinter({
-    required int number,
-    required int model,
-    required String ip,
-    required String port,
-    required String uid,
-    required String rm,
-    required int status,
-  }) async {
+  Future<void> addPrinter(Map<String, dynamic> printerData) async {
     final printer = {
       'id': 0,
-      'number': number,
-      'model': model,
-      'ip': ip,
-      'port': port,
-      'uid': uid,
-      'rm': rm,
-      'status': status,
+      'number': printerData['number'],
+      'model': printerData[
+          'modelCode'], // или просто 'model' если ключ уже переименован
+      'ip': printerData['ip'],
+      'port': printerData['port'],
+      'uid': printerData['uid'],
+      'rm': printerData['rm'],
+      'status': printerData['statusCode'], // или 'status'
     };
 
     final body = jsonEncode({
@@ -124,23 +117,16 @@ class ApiService extends ChangeNotifier {
     }
   }
 
-  Future<void> updatePrinter({
-    required int number,
-    required int model,
-    required String ip,
-    required String port,
-    required String uid,
-    required String rm,
-    required int status,
-  }) async {
+  Future<void> updatePrinter(Map<String, dynamic> printerData) async {
     final printer = {
-      'number': number,
-      'model': model,
-      'ip': ip,
-      'port': port,
-      'uid': uid,
-      'rm': rm,
-      'status': status,
+      'id': printerData['id'],
+      'number': printerData['number'],
+      'model': printerData['modelCode'], // или просто 'model'
+      'ip': printerData['ip'],
+      'port': printerData['port'],
+      'uid': printerData['uid'],
+      'rm': printerData['rm'],
+      'status': printerData['statusCode'], // или 'status'
     };
 
     final body = jsonEncode({
@@ -157,6 +143,24 @@ class ApiService extends ChangeNotifier {
 
     if (response.statusCode != 200) {
       throw Exception('Ошибка обновления принтера');
+    }
+  }
+
+  Future<void> deletePrinter(int id) async {
+    final body = jsonEncode({
+      'cmdtype': 'requesttodb',
+      'cmdname': 'DelPrinter',
+      'cmdbody': jsonEncode({'id': id}),
+    });
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка удаления принтера');
     }
   }
 }

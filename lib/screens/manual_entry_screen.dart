@@ -17,17 +17,35 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   final uidController = TextEditingController();
   final rmController = TextEditingController();
 
+  final _formKey = GlobalKey<FormState>();
+
   PrinterModel? _selectedModel;
   PrinterStatus? _selectedStatus;
 
-  final _formKey = GlobalKey<FormState>();
+  bool _isEditMode = false;
+  Printer? _existingPrinter;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is int) {
-      numberController.text = args.toString();
+    if (args is Printer) {
+      _isEditMode = true;
+      _existingPrinter = args;
+
+      numberController.text = args.number.toString();
+      ipController.text = args.ip;
+      portController.text = args.port;
+      uidController.text = args.uid;
+      rmController.text = args.rm;
+      _selectedModel = args.model;
+      _selectedStatus = args.status;
+    } else if (!_isEditMode) {
+      final nextNumber = ModalRoute.of(context)!.settings.arguments as int?;
+      if (nextNumber != null) {
+        numberController.text = nextNumber.toString();
+      }
     }
   }
 
@@ -38,13 +56,46 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     return regex.hasMatch(ip);
   }
 
+  bool _isValidUid(String? uid) {
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-'
+      r'[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{12}$',
+    );
+    return uid != null && uuidRegex.hasMatch(uid);
+  }
+
+  void _validateUidAndUpdateFields() {
+    final uid = uidController.text.trim();
+    final isEmptyUid =
+        uid.isEmpty || uid == '00000000-0000-0000-0000-000000000000';
+    final isValid = _isValidUid(uid);
+
+    setState(() {
+      if (isEmptyUid) {
+        rmController.clear();
+        _selectedStatus = PrinterStatus.notWorking;
+      } else if (isValid) {
+        if (rmController.text.trim().isEmpty) {
+          rmController.text = 'PM-1'; // можно указать значение по умолчанию
+        }
+        if (_selectedStatus != PrinterStatus.connected &&
+            _selectedStatus != PrinterStatus.inWork) {
+          _selectedStatus = PrinterStatus.connected;
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final apiService = Provider.of<ApiService>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Добавить принтер'),
+        title: Text(_isEditMode ? 'Редактировать принтер' : 'Добавить принтер'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -54,6 +105,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             children: [
               TextFormField(
                 controller: numberController,
+                enabled: !_isEditMode,
                 decoration: const InputDecoration(labelText: 'Номер принтера'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
@@ -87,7 +139,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               TextFormField(
                 controller: ipController,
                 decoration:
-                    const InputDecoration(labelText: 'IP адрес принетра'),
+                    const InputDecoration(labelText: 'IP адрес принтера'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -115,28 +167,20 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               TextFormField(
                 controller: uidController,
                 decoration: const InputDecoration(labelText: 'UID линии'),
-                validator: (value) {
-                  final trimmed = value?.trim();
-                  if (trimmed == null || trimmed.isEmpty) {
-                    return null; // Пустое значение допустимо, подставим default UID
-                  }
-                  final uuidRegex = RegExp(
-                    r'^[0-9a-fA-F]{8}-'
-                    r'[0-9a-fA-F]{4}-'
-                    r'[0-9a-fA-F]{4}-'
-                    r'[0-9a-fA-F]{4}-'
-                    r'[0-9a-fA-F]{12}$',
-                  );
-                  if (!uuidRegex.hasMatch(trimmed)) {
-                    return 'Неверный формат UID';
-                  }
-                  return null;
-                },
+                onChanged: (_) => _validateUidAndUpdateFields(),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: rmController,
                 decoration: const InputDecoration(labelText: 'PM линии'),
+                validator: (value) {
+                  final uid = uidController.text.trim();
+                  final isValid = _isValidUid(uid);
+                  if (isValid && (value == null || value.trim().isEmpty)) {
+                    return 'Введите PM линии';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<PrinterStatus>(
@@ -151,34 +195,51 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 onChanged: (value) {
                   setState(() => _selectedStatus = value);
                 },
-                validator: (value) => value == null ? 'Выберите статус' : null,
+                validator: (value) {
+                  final uid = uidController.text.trim();
+                  final isValid = _isValidUid(uid);
+                  if (value == null) return 'Выберите статус';
+                  if (!isValid && value != PrinterStatus.notWorking) {
+                    return 'Если UID пуст, статус должен быть "Не в работе"';
+                  }
+                  if (isValid &&
+                      value != PrinterStatus.connected &&
+                      value != PrinterStatus.inWork) {
+                    return 'Для указанного UID статус должен быть "Подключен" или "В работе"';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
-                    final newNumber = int.parse(numberController.text);
                     final uid = uidController.text.trim().isEmpty
                         ? '00000000-0000-0000-0000-000000000000'
                         : uidController.text.trim();
 
+                    final data = {
+                      'number': int.parse(numberController.text),
+                      'modelCode': _selectedModel!.code,
+                      'ip': ipController.text.trim(),
+                      'port': portController.text.trim(),
+                      'uid': uid,
+                      'rm': rmController.text.trim(),
+                      'statusCode': _selectedStatus!.code,
+                    };
+
                     try {
-                      await apiService.addPrinter(
-                        number: newNumber,
-                        model: _selectedModel!.code,
-                        ip: ipController.text.trim(),
-                        port: portController.text.trim(),
-                        uid: uid,
-                        rm: rmController.text.trim(),
-                        status: _selectedStatus!.code,
-                      );
-                      if (context.mounted) {
-                        Navigator.pop(context, true);
+                      if (_isEditMode) {
+                        data['id'] = _existingPrinter!.id;
+                        await apiService.updatePrinter(data);
+                      } else {
+                        await apiService.addPrinter(data);
                       }
+                      if (context.mounted) Navigator.pop(context, true);
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+                          SnackBar(content: Text('Ошибка: $e')),
                         );
                       }
                     }
