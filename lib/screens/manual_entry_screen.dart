@@ -70,7 +70,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               const SizedBox(height: 8),
               DropdownButtonFormField<PrinterModel>(
                 value: _selectedModel,
-                decoration: const InputDecoration(labelText: 'Модель'),
+                decoration: const InputDecoration(labelText: 'Модель принтера'),
                 items: PrinterModel.values
                     .where((model) => model != PrinterModel.unknown)
                     .map((model) => DropdownMenuItem(
@@ -86,7 +86,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: ipController,
-                decoration: const InputDecoration(labelText: 'IP-адрес'),
+                decoration:
+                    const InputDecoration(labelText: 'IP адрес принетра'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -101,7 +102,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: portController,
-                decoration: const InputDecoration(labelText: 'Порт'),
+                decoration: const InputDecoration(labelText: 'Порт принтера'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -113,7 +114,24 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: uidController,
-                decoration: const InputDecoration(labelText: 'UID принтера'),
+                decoration: const InputDecoration(labelText: 'UID линии'),
+                validator: (value) {
+                  final trimmed = value?.trim();
+                  if (trimmed == null || trimmed.isEmpty) {
+                    return null; // Пустое значение допустимо, подставим default UID
+                  }
+                  final uuidRegex = RegExp(
+                    r'^[0-9a-fA-F]{8}-'
+                    r'[0-9a-fA-F]{4}-'
+                    r'[0-9a-fA-F]{4}-'
+                    r'[0-9a-fA-F]{4}-'
+                    r'[0-9a-fA-F]{12}$',
+                  );
+                  if (!uuidRegex.hasMatch(trimmed)) {
+                    return 'Неверный формат UID';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -123,7 +141,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
               const SizedBox(height: 8),
               DropdownButtonFormField<PrinterStatus>(
                 value: _selectedStatus,
-                decoration: const InputDecoration(labelText: 'Статус'),
+                decoration: const InputDecoration(labelText: 'Статус принтера'),
                 items: PrinterStatus.values
                     .map((status) => DropdownMenuItem(
                           value: status,
