@@ -21,7 +21,11 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
 
   void _loadPrinters() {
     final api = Provider.of<ApiService>(context, listen: false);
-    _futurePrinters = api.getPrinters();
+    print("Loading printers..."); // Для отладки
+    _futurePrinters = api.getPrinters().catchError((e) {
+      print("Error in getPrinters: $e"); // Для отладки
+      throw e;
+    });
   }
 
   Future<void> _refreshPrinters() async {
@@ -147,7 +151,20 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Ошибка: ${snapshot.error}'));
+            print("FutureBuilder error: ${snapshot.error}"); // Для отладки
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Ошибка загрузки принтеров: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _refreshPrinters,
+                    child: const Text('Попробовать снова'),
+                  ),
+                ],
+              ),
+            );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('Нет данных о принтерах'));
           }
@@ -156,11 +173,10 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
 
           return RefreshIndicator(
             onRefresh: _refreshPrinters,
-            child: ListView.separated(
+            child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(12),
               itemCount: printers.length,
-              separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (context, index) {
                 final p = printers[index];
                 return GestureDetector(

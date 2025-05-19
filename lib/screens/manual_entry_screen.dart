@@ -24,28 +24,34 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
   bool _isEditMode = false;
   Printer? _existingPrinter;
+  bool _isInitialized =
+      false; // Флаг для предотвращения повторной инициализации
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Printer) {
-      _isEditMode = true;
-      _existingPrinter = args;
+    // Инициализируем только один раз
+    if (!_isInitialized) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Printer) {
+        _isEditMode = true;
+        _existingPrinter = args;
 
-      numberController.text = args.number.toString();
-      ipController.text = args.ip;
-      portController.text = args.port;
-      uidController.text = args.uid;
-      rmController.text = args.rm;
-      _selectedModel = args.model;
-      _selectedStatus = args.status;
-    } else if (!_isEditMode) {
-      final nextNumber = ModalRoute.of(context)!.settings.arguments as int?;
-      if (nextNumber != null) {
-        numberController.text = nextNumber.toString();
+        numberController.text = args.number.toString();
+        ipController.text = args.ip;
+        portController.text = args.port;
+        uidController.text = args.uid;
+        rmController.text = args.rm;
+        _selectedModel = args.model;
+        _selectedStatus = args.status;
+      } else if (!_isEditMode) {
+        final nextNumber = ModalRoute.of(context)!.settings.arguments as int?;
+        if (nextNumber != null) {
+          numberController.text = nextNumber.toString();
+        }
       }
+      _isInitialized = true;
     }
   }
 
@@ -57,6 +63,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   }
 
   bool _isValidUid(String? uid) {
+    if (uid == null || uid.isEmpty) return false;
     final uuidRegex = RegExp(
       r'^[0-9a-fA-F]{8}-'
       r'[0-9a-fA-F]{4}-'
@@ -64,7 +71,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{12}$',
     );
-    return uid != null && uuidRegex.hasMatch(uid);
+    return uuidRegex.hasMatch(uid) && uid.length == 36;
   }
 
   void _validateUidAndUpdateFields() {
@@ -79,7 +86,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         _selectedStatus = PrinterStatus.notWorking;
       } else if (isValid) {
         if (rmController.text.trim().isEmpty) {
-          rmController.text = 'PM-1'; // можно указать значение по умолчанию
+          rmController.text = 'PM';
         }
         if (_selectedStatus != PrinterStatus.connected &&
             _selectedStatus != PrinterStatus.inWork) {
@@ -120,20 +127,28 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 },
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<PrinterModel>(
-                value: _selectedModel,
-                decoration: const InputDecoration(labelText: 'Модель принтера'),
-                items: PrinterModel.values
-                    .where((model) => model != PrinterModel.unknown)
-                    .map((model) => DropdownMenuItem(
-                          value: model,
-                          child: Text(model.name),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedModel = value);
+              Builder(
+                builder: (context) {
+                  return DropdownButtonFormField<PrinterModel>(
+                    value: _selectedModel,
+                    decoration:
+                        const InputDecoration(labelText: 'Модель принтера'),
+                    items: PrinterModel.values
+                        .where((model) => model != PrinterModel.unknown)
+                        .map((model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model.name),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedModel = value;
+                      });
+                    },
+                    validator: (value) =>
+                        value == null ? 'Выберите модель' : null,
+                  );
                 },
-                validator: (value) => value == null ? 'Выберите модель' : null,
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -193,7 +208,9 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                         ))
                     .toList(),
                 onChanged: (value) {
-                  setState(() => _selectedStatus = value);
+                  setState(() {
+                    _selectedStatus = value;
+                  });
                 },
                 validator: (value) {
                   final uid = uidController.text.trim();
@@ -220,18 +237,19 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
                     final data = {
                       'number': int.parse(numberController.text),
-                      'modelCode': _selectedModel!.code,
+                      'model': _selectedModel!.code,
                       'ip': ipController.text.trim(),
                       'port': portController.text.trim(),
                       'uid': uid,
                       'rm': rmController.text.trim(),
-                      'statusCode': _selectedStatus!.code,
+                      'status': _selectedStatus!.code,
                     };
 
                     try {
                       if (_isEditMode) {
                         data['id'] = _existingPrinter!.id;
                         await apiService.updatePrinter(data);
+                        await apiService.getPrinters();
                       } else {
                         await apiService.addPrinter(data);
                       }
