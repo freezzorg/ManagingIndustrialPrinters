@@ -121,15 +121,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
         }
       }
 
-      await api.updatePrinter(
-        number: printerInfo.number,
-        model: printerInfo.modelCode,
-        ip: printerInfo.ip,
-        port: printerInfo.port,
-        uid: lineUid,
-        rm: lineRm,
-        status: printerInfo.statusCode,
-      );
+      await api.updatePrinter({
+        'id': printerInfo.id,
+        'number': printerInfo.number,
+        'modelCode': printerInfo.modelCode,
+        'ip': printerInfo.ip,
+        'port': printerInfo.port,
+        'uid': lineUid,
+        'rm': lineRm,
+        'statusCode': printerInfo.statusCode,
+      });
 
       _showMessage('Принтер успешно привязан');
       _reset();
