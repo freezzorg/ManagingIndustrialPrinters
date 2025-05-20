@@ -11,6 +11,8 @@ class ManualEntryScreen extends StatefulWidget {
 }
 
 class _ManualEntryScreenState extends State<ManualEntryScreen> {
+  static const _zeroUuid = '00000000-0000-0000-0000-000000000000';
+
   final numberController = TextEditingController();
   final ipController = TextEditingController();
   final portController = TextEditingController();
@@ -24,14 +26,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
   bool _isEditMode = false;
   Printer? _existingPrinter;
-  bool _isInitialized =
-      false; // Флаг для предотвращения повторной инициализации
+  bool _isInitialized = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // Инициализируем только один раз
     if (!_isInitialized) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Printer) {
@@ -45,8 +45,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         rmController.text = args.rm;
         _selectedModel = args.model;
         _selectedStatus = args.status;
-      } else if (!_isEditMode) {
-        final nextNumber = ModalRoute.of(context)!.settings.arguments as int?;
+      } else {
+        final nextNumber = args as int?;
         if (nextNumber != null) {
           numberController.text = nextNumber.toString();
         }
@@ -62,8 +62,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     return regex.hasMatch(ip);
   }
 
+  /// Считаем валидным только настоящий UUID, но не all-zero
   bool _isValidUid(String? uid) {
-    if (uid == null || uid.isEmpty) return false;
+    if (uid == null) return false;
+    final trimmed = uid.trim();
+    if (trimmed.isEmpty || trimmed == _zeroUuid) return false;
+
     final uuidRegex = RegExp(
       r'^[0-9a-fA-F]{8}-'
       r'[0-9a-fA-F]{4}-'
@@ -71,14 +75,13 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{12}$',
     );
-    return uuidRegex.hasMatch(uid) && uid.length == 36;
+    return uuidRegex.hasMatch(trimmed);
   }
 
   void _validateUidAndUpdateFields() {
-    final uid = uidController.text.trim();
-    final isEmptyUid =
-        uid.isEmpty || uid == '00000000-0000-0000-0000-000000000000';
-    final isValid = _isValidUid(uid);
+    final text = uidController.text.trim();
+    final isEmptyUid = text.isEmpty || text == _zeroUuid;
+    final isValid = _isValidUid(text);
 
     setState(() {
       if (isEmptyUid) {
@@ -110,6 +113,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              // Номер принтера
               TextFormField(
                 controller: numberController,
                 enabled: !_isEditMode,
@@ -119,38 +123,33 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Введите номер';
                   }
-                  final number = int.tryParse(value);
-                  if (number == null) {
+                  if (int.tryParse(value) == null) {
                     return 'Неверный номер';
                   }
                   return null;
                 },
               ),
+
               const SizedBox(height: 8),
-              Builder(
-                builder: (context) {
-                  return DropdownButtonFormField<PrinterModel>(
-                    value: _selectedModel,
-                    decoration:
-                        const InputDecoration(labelText: 'Модель принтера'),
-                    items: PrinterModel.values
-                        .where((model) => model != PrinterModel.unknown)
-                        .map((model) => DropdownMenuItem(
-                              value: model,
-                              child: Text(model.name),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedModel = value;
-                      });
-                    },
-                    validator: (value) =>
-                        value == null ? 'Выберите модель' : null,
-                  );
-                },
+
+              // Модель
+              DropdownButtonFormField<PrinterModel>(
+                value: _selectedModel,
+                decoration: const InputDecoration(labelText: 'Модель принтера'),
+                items: PrinterModel.values
+                    .where((m) => m != PrinterModel.unknown)
+                    .map((m) => DropdownMenuItem(
+                          value: m,
+                          child: Text(m.name),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedModel = v),
+                validator: (v) => v == null ? 'Выберите модель' : null,
               ),
+
               const SizedBox(height: 8),
+
+              // IP
               TextFormField(
                 controller: ipController,
                 decoration:
@@ -166,57 +165,63 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   return null;
                 },
               ),
+
               const SizedBox(height: 8),
+
+              // Порт
               TextFormField(
                 controller: portController,
                 decoration: const InputDecoration(labelText: 'Порт принтера'),
                 keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите порт';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? 'Введите порт' : null,
               ),
+
               const SizedBox(height: 8),
+
+              // UID линии
               TextFormField(
                 controller: uidController,
                 decoration: const InputDecoration(labelText: 'UID линии'),
                 onChanged: (_) => _validateUidAndUpdateFields(),
               ),
+
               const SizedBox(height: 8),
+
+              // PM линии
               TextFormField(
                 controller: rmController,
                 decoration: const InputDecoration(labelText: 'PM линии'),
                 validator: (value) {
-                  final uid = uidController.text.trim();
-                  final isValid = _isValidUid(uid);
-                  if (isValid && (value == null || value.trim().isEmpty)) {
+                  if (_isValidUid(uidController.text) &&
+                      (value == null || value.trim().isEmpty)) {
                     return 'Введите PM линии';
                   }
                   return null;
                 },
               ),
+
               const SizedBox(height: 8),
+
+              // Статус принтера
               DropdownButtonFormField<PrinterStatus>(
                 value: _selectedStatus,
                 decoration: const InputDecoration(labelText: 'Статус принтера'),
                 items: PrinterStatus.values
-                    .map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status.name),
+                    .map((s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(s.name),
                         ))
                     .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedStatus = value;
-                  });
-                },
+                onChanged: (v) => setState(() => _selectedStatus = v),
                 validator: (value) {
-                  final uid = uidController.text.trim();
-                  final isValid = _isValidUid(uid);
+                  final text = uidController.text.trim();
+                  final isEmptyUid = text.isEmpty || text == _zeroUuid;
+                  final isValid = _isValidUid(text);
+
                   if (value == null) return 'Выберите статус';
-                  if (!isValid && value != PrinterStatus.notWorking) {
+
+                  if (isEmptyUid && value != PrinterStatus.notWorking) {
                     return 'Если UID пуст, статус должен быть "Не в работе"';
                   }
                   if (isValid &&
@@ -227,13 +232,15 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   return null;
                 },
               ),
+
               const SizedBox(height: 16),
+
+              // Кнопка Сохранить
               ElevatedButton(
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
-                    final uid = uidController.text.trim().isEmpty
-                        ? '00000000-0000-0000-0000-000000000000'
-                        : uidController.text.trim();
+                    final rawUid = uidController.text.trim();
+                    final uid = rawUid.isEmpty ? _zeroUuid : rawUid;
 
                     final data = {
                       'number': int.parse(numberController.text),

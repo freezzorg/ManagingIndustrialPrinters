@@ -34,6 +34,31 @@ class ApiService extends ChangeNotifier {
     await prefs.setString(_prefsBaseUrlKey, newUrl);
   }
 
+  /// Приводит данные принтера к корректному виду:
+  /// - для пустого или all-zero UID устанавливает uid=all-zero, rm='' и status=notWorking
+  /// - для любого другого UID оставляет rm и status как есть (или status='connected' по умолчанию)
+  Map<String, dynamic> _normalizePrinterData(Map<String, dynamic> data) {
+    final rawUid = data['uid']?.toString().trim().toLowerCase() ?? '';
+    final zeroUuid = '00000000-0000-0000-0000-000000000000';
+    final isUidEmpty = rawUid.isEmpty || rawUid == zeroUuid;
+
+    return {
+      'id': data['id'] ?? 0,
+      'number': data['number'],
+      'model': data['model'],
+      'ip': data['ip'],
+      'port': data['port'],
+      // для пустого UID храним all-zero строку
+      'uid': isUidEmpty ? zeroUuid : rawUid,
+      // RM линии — пустое для пустого UID, иначе переданное значение
+      'rm': isUidEmpty ? '' : data['rm'],
+      // Статус — notWorking при пустом UID, иначе переданный или подключен по умолчанию
+      'status': isUidEmpty
+          ? PrinterStatus.notWorking.code
+          : (data['status'] ?? PrinterStatus.connected.code),
+    };
+  }
+
   Future<Printer?> getPrinterByIdOrUid({int? id, String? uid}) async {
     if (id == null && uid == null) {
       throw ArgumentError('Необходимо передать либо id, либо uid принтера');
@@ -57,7 +82,7 @@ class ApiService extends ChangeNotifier {
             headers: {'Content-Type': 'application/json'},
             body: body,
           )
-          .timeout(const Duration(seconds: 10)); // Таймаут 10 секунд
+          .timeout(const Duration(seconds: 10));
 
       print(
           "GetPrinter response: ${response.statusCode} ${response.body}"); // Для отладки
@@ -92,7 +117,7 @@ class ApiService extends ChangeNotifier {
             headers: {'Content-Type': 'application/json'},
             body: body,
           )
-          .timeout(const Duration(seconds: 10)); // Таймаут 10 секунд
+          .timeout(const Duration(seconds: 10));
 
       print(
           "GetAllPrinters response: ${response.statusCode} ${response.body}"); // Для отладки
@@ -117,16 +142,8 @@ class ApiService extends ChangeNotifier {
   }
 
   Future<void> addPrinter(Map<String, dynamic> printerData) async {
-    final printer = {
-      'id': 0,
-      'number': printerData['number'],
-      'model': printerData['model'],
-      'ip': printerData['ip'],
-      'port': printerData['port'],
-      'uid': printerData['uid'],
-      'rm': printerData['rm'],
-      'status': printerData['status'],
-    };
+    // Нормализуем данные перед отправкой
+    final printer = _normalizePrinterData(printerData);
 
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
@@ -158,16 +175,8 @@ class ApiService extends ChangeNotifier {
   }
 
   Future<void> updatePrinter(Map<String, dynamic> printerData) async {
-    final printer = {
-      'id': printerData['id'],
-      'number': printerData['number'],
-      'model': printerData['model'],
-      'ip': printerData['ip'],
-      'port': printerData['port'],
-      'uid': printerData['uid'],
-      'rm': printerData['rm'],
-      'status': printerData['status'],
-    };
+    // Нормализуем данные перед отправкой
+    final printer = _normalizePrinterData(printerData);
 
     final body = jsonEncode({
       'cmdtype': 'requesttodb',
