@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService extends ChangeNotifier {
   static const _prefsBaseUrlKey = 'baseUrl';
+  static const _zeroUuid = '00000000-0000-0000-0000-000000000000';
 
   String _baseUrl = 'http://10.10.8.80:21010';
 
@@ -39,8 +40,8 @@ class ApiService extends ChangeNotifier {
   /// - для любого другого UID оставляет rm и status как есть (или status='connected' по умолчанию)
   Map<String, dynamic> _normalizePrinterData(Map<String, dynamic> data) {
     final rawUid = data['uid']?.toString().trim().toLowerCase() ?? '';
-    final zeroUuid = '00000000-0000-0000-0000-000000000000';
-    final isUidEmpty = rawUid.isEmpty || rawUid == zeroUuid;
+    // final zeroUuid = '00000000-0000-0000-0000-000000000000';
+    final isUidEmpty = rawUid.isEmpty || rawUid == _zeroUuid;
 
     return {
       'id': data['id'] ?? 0,
@@ -49,7 +50,7 @@ class ApiService extends ChangeNotifier {
       'ip': data['ip'],
       'port': data['port'],
       // для пустого UID храним all-zero строку
-      'uid': isUidEmpty ? zeroUuid : rawUid,
+      'uid': isUidEmpty ? _zeroUuid : rawUid,
       // RM линии — пустое для пустого UID, иначе переданное значение
       'rm': isUidEmpty ? '' : data['rm'],
       // Статус — notWorking при пустом UID, иначе переданный или подключен по умолчанию

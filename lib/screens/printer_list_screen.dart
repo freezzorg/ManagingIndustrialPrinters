@@ -58,6 +58,10 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
   }
 
   Future<void> _confirmDelete(Printer printer) async {
+    // Сохраняем мессенджер и прокси ApiService до await
+    final messenger = ScaffoldMessenger.of(context);
+    final api = Provider.of<ApiService>(context, listen: false);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -75,17 +79,15 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
       ),
     );
 
+    if (!mounted) return; // ← проверка, что State всё ещё в дереве
     if (confirmed == true) {
       try {
-        final api = Provider.of<ApiService>(context, listen: false);
         await api.deletePrinter(printer.id);
         _refreshPrinters();
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка удаления: ${e.toString()}')),
-          );
-        }
+        messenger.showSnackBar(
+          SnackBar(content: Text('Ошибка удаления: ${e.toString()}')),
+        );
       }
     }
   }
