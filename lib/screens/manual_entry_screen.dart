@@ -256,7 +256,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                       if (_isEditMode) {
                         data['id'] = _existingPrinter!.id;
                         await apiService.updatePrinter(data);
-                        await apiService.getPrinters();
                       } else {
                         await apiService.addPrinter(data);
                       }
