@@ -14,7 +14,10 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  final MobileScannerController cameraController = MobileScannerController();
+  // Отключаем автостарт: контроллер стартует только вручную
+  final MobileScannerController cameraController =
+      MobileScannerController(autoStart: false);
+
   String? lineData;
   String? printerData;
   bool isScanningLine = false;
@@ -22,10 +25,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool processing = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Отключаем автоматический старт камеры — сканирование по кнопке
-    cameraController.stop();
+  void dispose() {
+    cameraController.dispose();
+    super.dispose();
   }
 
   void _startScanLine() {
@@ -35,7 +37,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isScanningLine = true;
       isScanningPrinter = false;
     });
-    cameraController.start();
+    // Ждём отрисовки MobileScanner и потом стартуем
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cameraController.start();
+    });
   }
 
   void _startScanPrinter() {
@@ -43,12 +48,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isScanningLine = false;
       isScanningPrinter = true;
     });
-    cameraController.start();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cameraController.start();
+    });
   }
 
   void _onDetect(BarcodeCapture capture) {
     if (!(isScanningLine || isScanningPrinter) || processing) return;
-
     for (final barcode in capture.barcodes) {
       final code = barcode.rawValue;
       if (code == null) continue;
@@ -82,7 +88,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return parts.length > 2 ? parts[2].trim() : '';
   }
 
-  /// Формирует RM как "название линии. вид операции" (обратите внимание на пробел после точки)
   String _buildRm(String qr) {
     final name = _parseLineName(qr);
     final opType = _parseLineOpType(qr);
@@ -127,7 +132,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Future<void> _bindPrinter() async {
     setState(() => processing = true);
     final api = Provider.of<ApiService>(context, listen: false);
-
     try {
       final lineUid = _parseLineUid(lineData!);
       final lineRm = _buildRm(lineData!);
@@ -173,7 +177,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Future<void> _unbindPrinter() async {
     setState(() => processing = true);
     final api = Provider.of<ApiService>(context, listen: false);
-
     try {
       final printerInfo = _parsePrinterInfo(printerData!);
       final serverPrinter =
@@ -237,10 +240,21 @@ class _ScannerScreenState extends State<ScannerScreen> {
         children: [
           Expanded(
             flex: 3,
-            child: MobileScanner(
-              controller: cameraController,
-              onDetect: _onDetect,
-            ),
+            child: (isScanningLine || isScanningPrinter)
+                ? MobileScanner(
+                    controller: cameraController,
+                    onDetect: _onDetect,
+                  )
+                : Container(
+                    color: Colors.black54,
+                    child: const Center(
+                      child: Text(
+                        'Нажмите кнопку, чтобы начать сканирование',
+                        style: TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
           ),
           Expanded(
             flex: 2,
@@ -288,11 +302,5 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    cameraController.dispose();
-    super.dispose();
   }
 }
