@@ -18,12 +18,10 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   final portController = TextEditingController();
   final uidController = TextEditingController();
   final rmController = TextEditingController();
-
   final _formKey = GlobalKey<FormState>();
 
   PrinterModel? _selectedModel;
   PrinterStatus? _selectedStatus;
-
   bool _isEditMode = false;
   Printer? _existingPrinter;
   bool _isInitialized = false;
@@ -31,13 +29,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     if (!_isInitialized) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Printer) {
+        // Режим редактирования
         _isEditMode = true;
         _existingPrinter = args;
-
         numberController.text = args.number.toString();
         ipController.text = args.ip;
         portController.text = args.port;
@@ -45,11 +42,9 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         rmController.text = args.rm;
         _selectedModel = args.model;
         _selectedStatus = args.status;
-      } else {
-        final nextNumber = args as int?;
-        if (nextNumber != null) {
-          numberController.text = nextNumber.toString();
-        }
+      } else if (args is int) {
+        // Режим добавления
+        numberController.text = args.toString();
       }
       _isInitialized = true;
     }
@@ -62,12 +57,10 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     return regex.hasMatch(ip);
   }
 
-  /// Считаем валидным только настоящий UUID, но не all-zero
   bool _isValidUid(String? uid) {
     if (uid == null) return false;
     final trimmed = uid.trim();
     if (trimmed.isEmpty || trimmed == _zeroUuid) return false;
-
     final uuidRegex = RegExp(
       r'^[0-9a-fA-F]{8}-'
       r'[0-9a-fA-F]{4}-'
@@ -80,11 +73,10 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
   void _validateUidAndUpdateFields() {
     final text = uidController.text.trim();
-    final isEmptyUid = text.isEmpty || text == _zeroUuid;
+    final isEmpty = text.isEmpty || text == _zeroUuid;
     final isValid = _isValidUid(text);
-
     setState(() {
-      if (isEmptyUid) {
+      if (isEmpty) {
         rmController.clear();
         _selectedStatus = PrinterStatus.notWorking;
       } else if (isValid) {
@@ -108,7 +100,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         title: Text(_isEditMode ? 'Редактировать принтер' : 'Добавить принтер'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
@@ -132,7 +124,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
               const SizedBox(height: 8),
 
-              // Модель
+              // Модель принтера
               DropdownButtonFormField<PrinterModel>(
                 value: _selectedModel,
                 decoration: const InputDecoration(labelText: 'Модель принтера'),
@@ -149,7 +141,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
               const SizedBox(height: 8),
 
-              // IP
+              // IP адрес
               TextFormField(
                 controller: ipController,
                 decoration:
@@ -168,7 +160,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
               const SizedBox(height: 8),
 
-              // Порт
+              // Порт принтера
               TextFormField(
                 controller: portController,
                 decoration: const InputDecoration(labelText: 'Порт принтера'),
@@ -179,10 +171,21 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
               const SizedBox(height: 8),
 
-              // UID линии
+              // UID линии с кнопкой очистки
               TextFormField(
                 controller: uidController,
-                decoration: const InputDecoration(labelText: 'UID линии'),
+                decoration: InputDecoration(
+                  labelText: 'UID линии',
+                  suffixIcon: uidController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            uidController.clear();
+                            _validateUidAndUpdateFields();
+                          },
+                        )
+                      : null,
+                ),
                 onChanged: (_) => _validateUidAndUpdateFields(),
               ),
 
@@ -216,12 +219,10 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 onChanged: (v) => setState(() => _selectedStatus = v),
                 validator: (value) {
                   final text = uidController.text.trim();
-                  final isEmptyUid = text.isEmpty || text == _zeroUuid;
+                  final isEmpty = text.isEmpty || text == _zeroUuid;
                   final isValid = _isValidUid(text);
-
                   if (value == null) return 'Выберите статус';
-
-                  if (isEmptyUid && value != PrinterStatus.notWorking) {
+                  if (isEmpty && value != PrinterStatus.notWorking) {
                     return 'Если UID пуст, статус должен быть "Не в работе"';
                   }
                   if (isValid &&
@@ -233,39 +234,39 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Кнопка Сохранить
+              // Кнопка сохранить
               ElevatedButton(
                 onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    final rawUid = uidController.text.trim();
-                    final uid = rawUid.isEmpty ? _zeroUuid : rawUid;
+                  if (!_formKey.currentState!.validate()) return;
 
-                    final data = {
-                      'number': int.parse(numberController.text),
-                      'model': _selectedModel!.code,
-                      'ip': ipController.text.trim(),
-                      'port': portController.text.trim(),
-                      'uid': uid,
-                      'rm': rmController.text.trim(),
-                      'status': _selectedStatus!.code,
-                    };
+                  final rawUid = uidController.text.trim();
+                  final uid = rawUid.isEmpty ? _zeroUuid : rawUid;
 
-                    try {
-                      if (_isEditMode) {
-                        data['id'] = _existingPrinter!.id;
-                        await apiService.updatePrinter(data);
-                      } else {
-                        await apiService.addPrinter(data);
-                      }
-                      if (context.mounted) Navigator.pop(context, true);
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Ошибка: $e')),
-                        );
-                      }
+                  final data = {
+                    'number': int.parse(numberController.text),
+                    'model': _selectedModel!.code,
+                    'ip': ipController.text.trim(),
+                    'port': portController.text.trim(),
+                    'uid': uid,
+                    'rm': rmController.text.trim(),
+                    'status': _selectedStatus!.code,
+                  };
+
+                  try {
+                    if (_isEditMode) {
+                      data['id'] = _existingPrinter!.id;
+                      await apiService.updatePrinter(data);
+                    } else {
+                      await apiService.addPrinter(data);
+                    }
+                    if (context.mounted) Navigator.pop(context, true);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Ошибка: $e')),
+                      );
                     }
                   }
                 },
