@@ -276,7 +276,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
             SizedBox(
               height: 300,
@@ -307,48 +308,38 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       style: const TextStyle(fontSize: 0),
                     ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    Text('Линия: ${lineData ?? "не отсканировано"}'),
-                    Text('Принтер: ${printerData ?? "не отсканировано"}'),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _startScanLine,
-                      child: const Text('Сканировать линию'),
-                    ),
-                    ElevatedButton(
-                      onPressed: _startScanPrinter,
-                      child: const Text('Сканировать принтер'),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: (lineData != null &&
-                              printerData != null &&
-                              !processing)
-                          ? _bindPrinter
-                          : null,
-                      child: processing
-                          ? const CircularProgressIndicator()
-                          : const Text('Привязать'),
-                    ),
-                    ElevatedButton(
-                      onPressed: (printerData != null && !processing)
-                          ? _unbindPrinter
-                          : null,
-                      child: processing
-                          ? const CircularProgressIndicator()
-                          : const Text('Отвязать'),
-                    ),
-                    TextButton(
-                      onPressed: _reset,
-                      child: const Text('Сброс'),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 16),
+            Text('Линия: ${lineData ?? "не отсканировано"}'),
+            Text('Принтер: ${printerData ?? "не отсканировано"}'),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _startScanLine,
+              child: const Text('Сканировать линию'),
+            ),
+            ElevatedButton(
+              onPressed: _startScanPrinter,
+              child: const Text('Сканировать принтер'),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed:
+                  (lineData != null && printerData != null && !processing)
+                      ? _bindPrinter
+                      : null,
+              child: processing
+                  ? const CircularProgressIndicator()
+                  : const Text('Привязать'),
+            ),
+            ElevatedButton(
+              onPressed:
+                  (printerData != null && !processing) ? _unbindPrinter : null,
+              child: processing
+                  ? const CircularProgressIndicator()
+                  : const Text('Отвязать'),
+            ),
+            TextButton(
+              onPressed: _reset,
+              child: const Text('Сброс'),
             ),
           ],
         ),
