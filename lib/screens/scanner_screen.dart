@@ -1,9 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 import 'package:mip/services/api_service.dart';
 import 'package:mip/models/printer.dart';
-import 'package:flutter/services.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 enum RebindAction { cancel, rebind }
 
@@ -23,71 +24,57 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool isScanningLine = false;
   bool isScanningPrinter = false;
   bool processing = false;
-  bool useCameraScan = false;
   bool hasHardwareScanner = false;
-
-  final TextEditingController _keyboardScanController = TextEditingController();
+  bool cameraScannerEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _detectScanner();
-    _keyboardScanController.addListener(_handleKeyboardScan);
+    _detectDeviceType();
   }
 
-  Future<void> _detectScanner() async {
-    final deviceModel = await _getDeviceModel();
+  Future<void> _detectDeviceType() async {
+    if (!Platform.isAndroid) return;
+    final deviceInfo = await DeviceInfoPlugin().androidInfo;
+    final model = deviceInfo.model.toLowerCase();
+    // final manufacturer = deviceInfo.manufacturer.toLowerCase();
+    // if (manufacturer.contains('zebra') || model.contains('urovo')) {
+    // Zebra-like устройство
+
     setState(() {
-      hasHardwareScanner = deviceModel.toLowerCase().contains("zebra") ||
-          deviceModel.toLowerCase().contains("urovo") ||
-          deviceModel.toLowerCase().contains("rt40");
-      useCameraScan = !hasHardwareScanner;
+      hasHardwareScanner = model.contains('zebra') || model.contains('urovo');
+      cameraScannerEnabled = !hasHardwareScanner;
     });
-  }
-
-  Future<String> _getDeviceModel() async {
-    const MethodChannel deviceInfoChannel = MethodChannel('device_info');
-    try {
-      final result = await deviceInfoChannel.invokeMethod<String>('getModel');
-      return result ?? '';
-    } catch (_) {
-      return '';
-    }
   }
 
   @override
   void dispose() {
     cameraController.dispose();
-    _keyboardScanController.removeListener(_handleKeyboardScan);
-    _keyboardScanController.dispose();
     super.dispose();
   }
 
   void _startScanLine() {
+    if (!cameraScannerEnabled) return;
     setState(() {
       lineData = null;
+      printerData = null;
       isScanningLine = true;
       isScanningPrinter = false;
     });
-
-    if (useCameraScan) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        cameraController.start();
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cameraController.start();
+    });
   }
 
   void _startScanPrinter() {
+    if (!cameraScannerEnabled) return;
     setState(() {
-      isScanningPrinter = true;
       isScanningLine = false;
+      isScanningPrinter = true;
     });
-
-    if (useCameraScan) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        cameraController.start();
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cameraController.start();
+    });
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -110,31 +97,25 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  void _handleKeyboardScan() {
-    final scanned = _keyboardScanController.text.trim();
-    if (scanned.isEmpty || !(isScanningLine || isScanningPrinter)) return;
-
-    setState(() {
-      if (isScanningLine) {
-        lineData = scanned;
-        isScanningLine = false;
-      } else if (isScanningPrinter) {
-        printerData = scanned;
-        isScanningPrinter = false;
-      }
-    });
-
-    _keyboardScanController.clear();
+  String _parseLineName(String qr) {
+    final parts = qr.split(',');
+    return parts.isNotEmpty ? parts[0].trim() : '';
   }
 
-  String _parseLineUid(String qr) =>
-      qr.split(',').length > 1 ? qr.split(',')[1].trim() : '';
+  String _parseLineUid(String qr) {
+    final parts = qr.split(',');
+    return parts.length > 1 ? parts[1].trim() : '';
+  }
+
+  String _parseLineOpType(String qr) {
+    final parts = qr.split(',');
+    return parts.length > 2 ? parts[2].trim() : '';
+  }
 
   String _buildRm(String qr) {
-    final parts = qr.split(',');
-    final name = parts.isNotEmpty ? parts[0].trim() : '';
-    final op = parts.length > 2 ? parts[2].trim() : '';
-    return '$name. $op';
+    final name = _parseLineName(qr);
+    final opType = _parseLineOpType(qr);
+    return '$name. $opType';
   }
 
   Printer _parsePrinterInfo(String qr) {
@@ -149,6 +130,27 @@ class _ScannerScreenState extends State<ScannerScreen> {
       uid: '',
       rm: '',
     );
+  }
+
+  Future<RebindAction> _showRebindDialog(String currentRm) async {
+    return showDialog<RebindAction>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Принтер уже привязан'),
+        content:
+            Text('Принтер уже привязан к линии $currentRm. Перепривязать?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(RebindAction.cancel),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(RebindAction.rebind),
+            child: const Text('Перепривязать'),
+          ),
+        ],
+      ),
+    ).then((value) => value ?? RebindAction.cancel);
   }
 
   Future<void> _bindPrinter() async {
@@ -168,7 +170,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       if (serverPrinter.statusCode == PrinterStatus.connected.code ||
           serverPrinter.statusCode == PrinterStatus.inWork.code) {
         final action = await _showRebindDialog(serverPrinter.rm);
-        if (action == RebindAction.cancel) return _reset();
+        if (action == RebindAction.cancel) {
+          _reset();
+          return;
+        }
       }
 
       final payload = {
@@ -184,10 +189,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
       await api.updatePrinter(payload);
       _showMessage('Принтер успешно привязан');
+      _reset();
     } catch (e) {
       _showMessage('Ошибка: $e');
-    } finally {
       _reset();
+    } finally {
+      setState(() => processing = false);
     }
   }
 
@@ -215,33 +222,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
       await api.updatePrinter(payload);
       _showMessage('Принтер успешно отвязан');
+      _reset();
     } catch (e) {
       _showMessage('Ошибка: $e');
-    } finally {
       _reset();
+    } finally {
+      setState(() => processing = false);
     }
-  }
-
-  Future<RebindAction> _showRebindDialog(String currentRm) async {
-    return (await showDialog<RebindAction>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Принтер уже привязан'),
-            content:
-                Text('Принтер уже привязан к линии $currentRm. Перепривязать?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, RebindAction.cancel),
-                child: const Text('Отмена'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, RebindAction.rebind),
-                child: const Text('Перепривязать'),
-              ),
-            ],
-          ),
-        )) ??
-        RebindAction.cancel;
   }
 
   void _reset() {
@@ -252,8 +239,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isScanningPrinter = false;
       processing = false;
     });
-    cameraController.stop();
-    _keyboardScanController.clear();
+    if (cameraScannerEnabled) {
+      cameraController.stop();
+    }
   }
 
   void _showMessage(String message) {
@@ -268,81 +256,109 @@ class _ScannerScreenState extends State<ScannerScreen> {
       appBar: AppBar(
         title: const Text('Сканирование'),
         actions: [
-          if (useCameraScan)
+          if (cameraScannerEnabled)
             IconButton(
               icon: const Icon(Icons.flash_on),
               onPressed: () => cameraController.toggleTorch(),
             ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            SizedBox(
-              height: 300,
-              child: useCameraScan
-                  ? (isScanningLine || isScanningPrinter
-                      ? MobileScanner(
-                          controller: cameraController,
-                          onDetect: _onDetect,
-                        )
-                      : const Center(
-                          child: Text(
-                            'Нажмите кнопку, чтобы начать сканирование',
-                            style: TextStyle(color: Colors.grey),
-                            textAlign: TextAlign.center,
-                          ),
-                        ))
-                  : TextField(
-                      controller: _keyboardScanController,
-                      autofocus: true,
-                      readOnly: true,
-                      showCursor: false,
-                      enableInteractiveSelection: false,
-                      decoration: const InputDecoration(
-                        hintText: 'Ожидание сканирования...',
-                        contentPadding: EdgeInsets.all(16),
-                        border: InputBorder.none,
+      body: Column(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Container(
+              // Add container with fixed color to prevent layout shifts
+              color: Colors.black54,
+              child: (cameraScannerEnabled &&
+                      (isScanningLine || isScanningPrinter))
+                  ? MobileScanner(
+                      controller: cameraController,
+                      onDetect: _onDetect,
+                    )
+                  : Center(
+                      child: Text(
+                        cameraScannerEnabled
+                            ? 'Нажмите кнопку, чтобы начать сканирование'
+                            : 'Встроенный сканер активен. Камера отключена.',
+                        style: const TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
                       ),
-                      style: const TextStyle(fontSize: 0),
                     ),
             ),
-            const SizedBox(height: 16),
-            Text('Линия: ${lineData ?? "не отсканировано"}'),
-            Text('Принтер: ${printerData ?? "не отсканировано"}'),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _startScanLine,
-              child: const Text('Сканировать линию'),
+          ),
+          Expanded(
+            flex: 2,
+            child: Padding(
+              // Add padding to ensure consistent layout
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                mainAxisAlignment:
+                    MainAxisAlignment.center, // Center content vertically
+                children: [
+                  // Use fixed height containers for status text
+                  Container(
+                    height: 24,
+                    alignment: Alignment.center,
+                    child: Text('Линия: ${lineData ?? "не отсканировано"}'),
+                  ),
+                  Container(
+                    height: 24,
+                    alignment: Alignment.center,
+                    child:
+                        Text('Принтер: ${printerData ?? "не отсканировано"}'),
+                  ),
+                  const SizedBox(height: 12),
+                  // Use SizedBox with width constraints for buttons to maintain consistent width
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: cameraScannerEnabled ? _startScanLine : null,
+                      child: const Text('Сканировать линию'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed:
+                          cameraScannerEnabled ? _startScanPrinter : null,
+                      child: const Text('Сканировать принтер'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: (lineData != null &&
+                              printerData != null &&
+                              !processing)
+                          ? _bindPrinter
+                          : null,
+                      child: processing
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Привязать'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: (printerData != null && !processing)
+                          ? _unbindPrinter
+                          : null,
+                      child: processing
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Отвязать'),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _reset,
+                    child: const Text('Сброс'),
+                  ),
+                ],
+              ),
             ),
-            ElevatedButton(
-              onPressed: _startScanPrinter,
-              child: const Text('Сканировать принтер'),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed:
-                  (lineData != null && printerData != null && !processing)
-                      ? _bindPrinter
-                      : null,
-              child: processing
-                  ? const CircularProgressIndicator()
-                  : const Text('Привязать'),
-            ),
-            ElevatedButton(
-              onPressed:
-                  (printerData != null && !processing) ? _unbindPrinter : null,
-              child: processing
-                  ? const CircularProgressIndicator()
-                  : const Text('Отвязать'),
-            ),
-            TextButton(
-              onPressed: _reset,
-              child: const Text('Сброс'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
