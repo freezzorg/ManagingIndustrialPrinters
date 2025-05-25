@@ -24,40 +24,122 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool isScanningLine = false;
   bool isScanningPrinter = false;
   bool processing = false;
-  bool hasHardwareScanner = false;
-  bool cameraScannerEnabled = true;
+  bool hasHardwareScanner = false; // результат автоопределения
+  bool isHardwareScannerMode =
+      false; // режим работы (может быть изменен пользователем)
+
+  // Для обработки аппаратного сканера
+  final FocusNode _scanFocusNode = FocusNode();
+  final TextEditingController _scanController = TextEditingController();
+  String _lastScannedData = '';
 
   @override
   void initState() {
     super.initState();
     _detectDeviceType();
+    
+    // Настраиваем слушателя для аппаратного сканера
+    _scanController.addListener(_handleHardwareScan);
   }
 
+  // Автоопределение типа устройства
   Future<void> _detectDeviceType() async {
     if (!Platform.isAndroid) return;
     final deviceInfo = await DeviceInfoPlugin().androidInfo;
     final model = deviceInfo.model.toLowerCase();
-    // final manufacturer = deviceInfo.manufacturer.toLowerCase();
-    // if (manufacturer.contains('zebra') || model.contains('urovo')) {
-    // Zebra-like устройство
 
+    final isHardware = model.contains('zebra') || model.contains('urovo');
+    
     setState(() {
-      hasHardwareScanner = model.contains('zebra') || model.contains('urovo');
-      cameraScannerEnabled = !hasHardwareScanner;
+      hasHardwareScanner = isHardware;
+      isHardwareScannerMode =
+          isHardware; // Изначально используем результат автоопределения
+
+      // Если определили аппаратный сканер, устанавливаем фокус
+      if (isHardwareScannerMode) {
+        Future.microtask(() => _scanFocusNode.requestFocus());
+      }
     });
+  }
+
+  // Переключение режима сканера
+  void _toggleScannerMode() {
+    setState(() {
+      isHardwareScannerMode = !isHardwareScannerMode;
+    });
+
+    // Сбрасываем состояние
+    _reset();
+
+    // Если переключились на аппаратный сканер, устанавливаем фокус
+    if (isHardwareScannerMode) {
+      Future.microtask(() => _scanFocusNode.requestFocus());
+    }
   }
 
   @override
   void dispose() {
     cameraController.dispose();
+    _scanController.dispose();
+    _scanFocusNode.dispose();
     super.dispose();
   }
 
+  // Обработчик для данных от аппаратного сканера
+  void _handleHardwareScan() {
+    if (!isHardwareScannerMode) return;
+
+    final scannedData = _scanController.text;
+    if (scannedData.isEmpty || scannedData == _lastScannedData) return;
+
+    _lastScannedData = scannedData;
+    print("Отсканировано: $scannedData");
+
+    if (scannedData.contains(',')) {
+      // Определяем тип отсканированных данных по формату
+      try {
+        if (_isPrinterQrCode(scannedData)) {
+          setState(() {
+            printerData = scannedData;
+          });
+          _showMessage("Принтер отсканирован");
+        } else {
+          setState(() {
+            lineData = scannedData;
+          });
+          _showMessage("Линия отсканирована");
+        }
+
+        // Очищаем поле и возвращаем фокус для следующего сканирования
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _scanController.clear();
+          _scanFocusNode.requestFocus();
+        });
+      } catch (e) {
+        _showMessage("Ошибка при обработке данных: $e");
+        _scanController.clear();
+      }
+    }
+  }
+
+  // Определяет, является ли QR-код кодом принтера
+  bool _isPrinterQrCode(String qrData) {
+    final parts = qrData.split(',');
+    if (parts.length < 5) return false;
+
+    try {
+      // Проверяем, можно ли первую часть преобразовать в число (номер принтера)
+      int.parse(parts[0].trim());
+      // Проверяем, есть ли IP-адрес в третьей части
+      return parts[2].trim().contains('.');
+    } catch (e) {
+      return false;
+    }
+  }
+
   void _startScanLine() {
-    if (!cameraScannerEnabled) return;
+    if (isHardwareScannerMode) return;
     setState(() {
-      lineData = null;
-      printerData = null;
       isScanningLine = true;
       isScanningPrinter = false;
     });
@@ -67,7 +149,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _startScanPrinter() {
-    if (!cameraScannerEnabled) return;
+    if (isHardwareScannerMode) return;
     setState(() {
       isScanningLine = false;
       isScanningPrinter = true;
@@ -116,6 +198,27 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final name = _parseLineName(qr);
     final opType = _parseLineOpType(qr);
     return '$name. $opType';
+  }
+
+  // Функция для отображения имени линии в формате PM01
+  String _getDisplayLineName(String? data) {
+    if (data == null) return "не отсканировано";
+    final name = _parseLineName(data);
+    return name; // Уже в формате PM01
+  }
+
+  // Функция для отображения номера принтера в формате №01
+  String _getDisplayPrinterNumber(String? data) {
+    if (data == null) return "не отсканировано";
+    try {
+      final parts = data.split(',');
+      if (parts.isEmpty) return "неверный формат";
+
+      final number = int.parse(parts[0].trim());
+      return "№${number.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "ошибка формата";
+    }
   }
 
   Printer _parsePrinterInfo(String qr) {
@@ -238,8 +341,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isScanningLine = false;
       isScanningPrinter = false;
       processing = false;
+      
+      // Сброс поля ввода для аппаратного сканера
+      _scanController.clear();
+      _lastScannedData = '';
+
+      if (isHardwareScannerMode) {
+        Future.microtask(() => _scanFocusNode.requestFocus());
+      }
     });
-    if (cameraScannerEnabled) {
+    if (!isHardwareScannerMode) {
       cameraController.stop();
     }
   }
@@ -256,7 +367,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
       appBar: AppBar(
         title: const Text('Сканирование'),
         actions: [
-          if (cameraScannerEnabled)
+          // Переключатель режима сканера
+          IconButton(
+            icon: Icon(isHardwareScannerMode
+                ? Icons.qr_code_scanner
+                : Icons.camera_alt),
+            onPressed: _toggleScannerMode,
+            tooltip: isHardwareScannerMode
+                ? 'Переключиться на камеру'
+                : 'Переключиться на аппаратный сканер',
+          ),
+          // Кнопка вспышки для камеры
+          if (!isHardwareScannerMode)
             IconButton(
               icon: const Icon(Icons.flash_on),
               onPressed: () => cameraController.toggleTorch(),
@@ -265,93 +387,171 @@ class _ScannerScreenState extends State<ScannerScreen> {
       ),
       body: Column(
         children: [
+          // Верхняя часть экрана - камера или информация
           Expanded(
             flex: 3,
             child: Container(
-              // Add container with fixed color to prevent layout shifts
               color: Colors.black54,
-              child: (cameraScannerEnabled &&
-                      (isScanningLine || isScanningPrinter))
-                  ? MobileScanner(
-                      controller: cameraController,
-                      onDetect: _onDetect,
+              child: isHardwareScannerMode
+                  ? Stack(
+                      children: [
+                        const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.qr_code_scanner,
+                                size: 80,
+                                color: Colors.white70,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Используйте аппаратный сканер для считывания QR-кодов',
+                                style: TextStyle(color: Colors.white70),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Скрытое поле для приема данных от аппаратного сканера
+                        Positioned(
+                          left: -1000, // Размещаем вне видимой области
+                          child: TextField(
+                            controller: _scanController,
+                            focusNode: _scanFocusNode,
+                            autofocus: true,
+                            decoration: const InputDecoration(
+                              hintText: 'Сканирование',
+                            ),
+                          ),
+                        ),
+                      ],
                     )
-                  : Center(
-                      child: Text(
-                        cameraScannerEnabled
-                            ? 'Нажмите кнопку, чтобы начать сканирование'
-                            : 'Встроенный сканер активен. Камера отключена.',
-                        style: const TextStyle(color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                  : (isScanningLine || isScanningPrinter)
+                      ? MobileScanner(
+                          controller: cameraController,
+                          onDetect: _onDetect,
+                        )
+                      : const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.camera_alt,
+                                size: 80,
+                                color: Colors.white70,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Нажмите кнопку ниже, чтобы начать сканирование',
+                                style: TextStyle(color: Colors.white70),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
             ),
           ),
+
+          // Нижняя часть экрана - информация и кнопки
           Expanded(
             flex: 2,
             child: Padding(
-              // Add padding to ensure consistent layout
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // Center content vertically
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Use fixed height containers for status text
+                  // Статус сканирования
                   Container(
-                    height: 24,
+                    height: 30,
                     alignment: Alignment.center,
-                    child: Text('Линия: ${lineData ?? "не отсканировано"}'),
+                    child: Text(
+                      'Принтер: ${_getDisplayPrinterNumber(printerData)}',
+                      style: const TextStyle(fontSize: 18),
+                    ),
                   ),
                   Container(
-                    height: 24,
+                    height: 30,
                     alignment: Alignment.center,
-                    child:
-                        Text('Принтер: ${printerData ?? "не отсканировано"}'),
-                  ),
-                  const SizedBox(height: 12),
-                  // Use SizedBox with width constraints for buttons to maintain consistent width
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: cameraScannerEnabled ? _startScanLine : null,
-                      child: const Text('Сканировать линию'),
+                    child: Text(
+                      'Линия: ${_getDisplayLineName(lineData)}',
+                      style: const TextStyle(fontSize: 18),
                     ),
                   ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed:
-                          cameraScannerEnabled ? _startScanPrinter : null,
-                      child: const Text('Сканировать принтер'),
+                  const SizedBox(height: 16),
+
+                  // Кнопки для камерного сканирования
+                  if (!isHardwareScannerMode) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.print),
+                            label: const Text('Сканировать принтер'),
+                            onPressed: _startScanPrinter,
+                          ),
+                        ),
+                      ],
                     ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.linear_scale),
+                            label: const Text('Сканировать линию'),
+                            onPressed: _startScanLine,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Кнопки действий
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: (lineData != null &&
+                                  printerData != null &&
+                                  !processing)
+                              ? _bindPrinter
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                          ),
+                          child: processing &&
+                                  lineData != null &&
+                                  printerData != null
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : const Text('Привязать'),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: (lineData != null &&
-                              printerData != null &&
-                              !processing)
-                          ? _bindPrinter
-                          : null,
-                      child: processing
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Привязать'),
-                    ),
-                  ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: (printerData != null && !processing)
-                          ? _unbindPrinter
-                          : null,
-                      child: processing
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Отвязать'),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: (printerData != null && !processing)
+                              ? _unbindPrinter
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: processing &&
+                                  printerData != null &&
+                                  lineData == null
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : const Text('Отвязать'),
+                        ),
+                      ),
+                    ],
                   ),
                   TextButton(
-                    onPressed: _reset,
+                    onPressed: () => _reset(),
                     child: const Text('Сброс'),
                   ),
                 ],
