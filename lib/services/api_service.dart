@@ -36,11 +36,10 @@ class ApiService extends ChangeNotifier {
   }
 
   /// Приводит данные принтера к корректному виду:
-  /// - для пустого или all-zero UID устанавливает uid=all-zero, rm='' и status=notWorking
-  /// - для любого другого UID оставляет rm и status как есть (или status='connected' по умолчанию)
+  /// - для пустого или all-zero UID устанавливает uid=all-zero, rm='' и isWorking=false
+  /// - для любого другого UID оставляет rm и isWorking как есть (или isWorking=true по умолчанию)
   Map<String, dynamic> _normalizePrinterData(Map<String, dynamic> data) {
     final rawUid = data['uid']?.toString().trim().toLowerCase() ?? '';
-    // final zeroUuid = '00000000-0000-0000-0000-000000000000';
     final isUidEmpty = rawUid.isEmpty || rawUid == _zeroUuid;
 
     return {
@@ -53,10 +52,8 @@ class ApiService extends ChangeNotifier {
       'uid': isUidEmpty ? _zeroUuid : rawUid,
       // RM линии — пустое для пустого UID, иначе переданное значение
       'rm': isUidEmpty ? '' : data['rm'],
-      // Статус — notWorking при пустом UID, иначе переданный или подключен по умолчанию
-      'status': isUidEmpty
-          ? PrinterStatus.notWorking.code
-          : (data['status'] ?? PrinterStatus.connected.code),
+      // Статус — 0 (не в работе) при пустом UID, иначе переданный или 1 (в работе) по умолчанию
+      'status': isUidEmpty ? 0 : (data['status'] ?? 1),
     };
   }
 

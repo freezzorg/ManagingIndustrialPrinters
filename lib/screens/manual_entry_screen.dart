@@ -21,7 +21,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   final _formKey = GlobalKey<FormState>();
 
   PrinterModel? _selectedModel;
-  PrinterStatus? _selectedStatus;
+  bool _isWorking = false; // Булев статус вместо enum
   bool _isEditMode = false;
   Printer? _existingPrinter;
   bool _isInitialized = false;
@@ -41,7 +41,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         uidController.text = args.uid;
         rmController.text = args.rm;
         _selectedModel = args.model;
-        _selectedStatus = args.status;
+        _isWorking = args.isWorking; // Используем булев статус
       } else if (args is int) {
         // Режим добавления
         numberController.text = args.toString();
@@ -78,14 +78,13 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     setState(() {
       if (isEmpty) {
         rmController.clear();
-        _selectedStatus = PrinterStatus.notWorking;
+        _isWorking = false; // Если нет UID, то принтер не в работе
       } else if (isValid) {
         if (rmController.text.trim().isEmpty) {
           rmController.text = 'PM';
         }
-        if (_selectedStatus != PrinterStatus.connected &&
-            _selectedStatus != PrinterStatus.inWork) {
-          _selectedStatus = PrinterStatus.connected;
+        if (!_isWorking) {
+          _isWorking = true; // Если есть UID, то принтер в работе
         }
       }
     });
@@ -206,29 +205,31 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
               const SizedBox(height: 8),
 
-              // Статус принтера
-              DropdownButtonFormField<PrinterStatus>(
-                value: _selectedStatus,
+              // Статус принтера (теперь булев)
+              DropdownButtonFormField<bool>(
+                value: _isWorking,
                 decoration: const InputDecoration(labelText: 'Статус принтера'),
-                items: PrinterStatus.values
-                    .map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(s.name),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedStatus = v),
+                items: const [
+                  DropdownMenuItem(
+                    value: true,
+                    child: Text('В работе'),
+                  ),
+                  DropdownMenuItem(
+                    value: false,
+                    child: Text('Не в работе'),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _isWorking = v ?? false),
                 validator: (value) {
                   final text = uidController.text.trim();
                   final isEmpty = text.isEmpty || text == _zeroUuid;
                   final isValid = _isValidUid(text);
-                  if (value == null) return 'Выберите статус';
-                  if (isEmpty && value != PrinterStatus.notWorking) {
+                  
+                  if (isEmpty && value == true) {
                     return 'Если UID пуст, статус должен быть "Не в работе"';
                   }
-                  if (isValid &&
-                      value != PrinterStatus.connected &&
-                      value != PrinterStatus.inWork) {
-                    return 'Для указанного UID статус должен быть "Подключен" или "В работе"';
+                  if (isValid && value == false) {
+                    return 'Для указанного UID статус должен быть "В работе"';
                   }
                   return null;
                 },
@@ -251,7 +252,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                     'port': portController.text.trim(),
                     'uid': uid,
                     'rm': rmController.text.trim(),
-                    'status': _selectedStatus!.code,
+                    'status': _isWorking ? 1 : 0, // true = 1, false = 0
                   };
 
                   try {

@@ -193,7 +193,7 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                         children: [
                           _row('№', p.number.toString()),
                           _row('Модель', p.model.name),
-                          _row('Статус', p.status.name),
+                          _row('Статус', p.status),
                           _row('Адрес', '${p.ip}:${p.port}'),
                           if (p.rm.trim().isNotEmpty) _row('', p.rm),
                         ],

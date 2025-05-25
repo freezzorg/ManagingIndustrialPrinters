@@ -25,8 +25,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool isScanningPrinter = false;
   bool processing = false;
   bool hasHardwareScanner = false; // результат автоопределения
-  bool isHardwareScannerMode =
-      false; // режим работы (может быть изменен пользователем)
+  bool isHardwareScannerMode = false; // режим работы (может быть изменен пользователем)
 
   // Для обработки аппаратного сканера
   final FocusNode _scanFocusNode = FocusNode();
@@ -52,9 +51,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     
     setState(() {
       hasHardwareScanner = isHardware;
-      isHardwareScannerMode =
-          isHardware; // Изначально используем результат автоопределения
-
+      isHardwareScannerMode = isHardware; // Изначально используем результат автоопределения
+      
       // Если определили аппаратный сканер, устанавливаем фокус
       if (isHardwareScannerMode) {
         Future.microtask(() => _scanFocusNode.requestFocus());
@@ -67,10 +65,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() {
       isHardwareScannerMode = !isHardwareScannerMode;
     });
-
+    
     // Сбрасываем состояние
     _reset();
-
+    
     // Если переключились на аппаратный сканер, устанавливаем фокус
     if (isHardwareScannerMode) {
       Future.microtask(() => _scanFocusNode.requestFocus());
@@ -88,13 +86,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
   // Обработчик для данных от аппаратного сканера
   void _handleHardwareScan() {
     if (!isHardwareScannerMode) return;
-
+    
     final scannedData = _scanController.text;
     if (scannedData.isEmpty || scannedData == _lastScannedData) return;
-
+    
     _lastScannedData = scannedData;
     print("Отсканировано: $scannedData");
-
+    
     if (scannedData.contains(',')) {
       // Определяем тип отсканированных данных по формату
       try {
@@ -109,7 +107,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           });
           _showMessage("Линия отсканирована");
         }
-
+        
         // Очищаем поле и возвращаем фокус для следующего сканирования
         Future.delayed(const Duration(milliseconds: 500), () {
           _scanController.clear();
@@ -126,7 +124,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool _isPrinterQrCode(String qrData) {
     final parts = qrData.split(',');
     if (parts.length < 5) return false;
-
+    
     try {
       // Проверяем, можно ли первую часть преобразовать в число (номер принтера)
       int.parse(parts[0].trim());
@@ -213,7 +211,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     try {
       final parts = data.split(',');
       if (parts.isEmpty) return "неверный формат";
-
+      
       final number = int.parse(parts[0].trim());
       return "№${number.toString().padLeft(2, '0')}";
     } catch (e) {
@@ -223,13 +221,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Printer _parsePrinterInfo(String qr) {
     final parts = qr.split(',');
+    // Определяем рабочее состояние из числового кода
+    // 1 = true (в работе), 0 = false (не в работе)
+    final isWorking = int.parse(parts[4].trim()) == 1;
+    
     return Printer(
       id: 0,
       number: int.parse(parts[0].trim()),
       modelCode: int.parse(parts[1].trim()),
       ip: parts[2].trim(),
       port: parts[3].trim(),
-      statusCode: int.parse(parts[4].trim()),
+      isWorking: isWorking,
       uid: '',
       rm: '',
     );
@@ -270,8 +272,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
         throw Exception('Принтер не найден на сервере');
       }
 
-      if (serverPrinter.statusCode == PrinterStatus.connected.code ||
-          serverPrinter.statusCode == PrinterStatus.inWork.code) {
+      // Проверяем, привязан ли принтер к линии
+      if (serverPrinter.isWorking && serverPrinter.rm.isNotEmpty) {
         final action = await _showRebindDialog(serverPrinter.rm);
         if (action == RebindAction.cancel) {
           _reset();
@@ -287,7 +289,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         'port': serverPrinter.port,
         'uid': lineUid,
         'rm': lineRm,
-        'status': printerInfo.statusCode,
+        'status': 1, // В работе = 1
       };
 
       await api.updatePrinter(payload);
@@ -320,7 +322,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         'port': serverPrinter.port,
         'uid': '00000000-0000-0000-0000-000000000000',
         'rm': '',
-        'status': PrinterStatus.notWorking.code,
+        'status': 0, // Не в работе = 0
       };
 
       await api.updatePrinter(payload);
@@ -345,7 +347,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       // Сброс поля ввода для аппаратного сканера
       _scanController.clear();
       _lastScannedData = '';
-
+      
       if (isHardwareScannerMode) {
         Future.microtask(() => _scanFocusNode.requestFocus());
       }
@@ -369,12 +371,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
         actions: [
           // Переключатель режима сканера
           IconButton(
-            icon: Icon(isHardwareScannerMode
-                ? Icons.qr_code_scanner
+            icon: Icon(isHardwareScannerMode ? Icons.qr_code_scanner 
                 : Icons.camera_alt),
             onPressed: _toggleScannerMode,
-            tooltip: isHardwareScannerMode
-                ? 'Переключиться на камеру'
+            tooltip: isHardwareScannerMode ? 'Переключиться на камеру' 
                 : 'Переключиться на аппаратный сканер',
           ),
           // Кнопка вспышки для камеры
@@ -452,7 +452,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         ),
             ),
           ),
-
+          
           // Нижняя часть экрана - информация и кнопки
           Expanded(
             flex: 2,
@@ -479,7 +479,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
+                  
                   // Кнопки для камерного сканирования
                   if (!isHardwareScannerMode) ...[
                     Row(
@@ -506,25 +506,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                     const SizedBox(height: 8),
                   ],
-
+                  
                   // Кнопки действий
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: (lineData != null &&
-                                  printerData != null &&
-                                  !processing)
+                          onPressed: (lineData != null && printerData != null && !processing)
                               ? _bindPrinter
                               : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                           ),
-                          child: processing &&
-                                  lineData != null &&
-                                  printerData != null
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                          child: processing && lineData != null && printerData != null
+                              ? const CircularProgressIndicator(color: Colors.white)
                               : const Text('Привязать'),
                         ),
                       ),
@@ -540,11 +535,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                           ),
-                          child: processing &&
-                                  printerData != null &&
-                                  lineData == null
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                          child: processing && printerData != null && lineData == null
+                              ? const CircularProgressIndicator(color: Colors.white)
                               : const Text('Отвязать'),
                         ),
                       ),

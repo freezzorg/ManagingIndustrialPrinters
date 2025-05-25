@@ -1,46 +1,3 @@
-enum PrinterStatus {
-  connected,
-  inWork,
-  notWorking,
-}
-
-extension PrinterStatusExtension on PrinterStatus {
-  int get code {
-    switch (this) {
-      case PrinterStatus.connected:
-        return 1;
-      case PrinterStatus.inWork:
-        return 2;
-      case PrinterStatus.notWorking:
-        return 9;
-    }
-  }
-
-  String get name {
-    switch (this) {
-      case PrinterStatus.connected:
-        return 'Подключен';
-      case PrinterStatus.inWork:
-        return 'В работе';
-      case PrinterStatus.notWorking:
-        return 'Не в работе';
-    }
-  }
-
-  static PrinterStatus fromCode(int code) {
-    switch (code) {
-      case 1:
-        return PrinterStatus.connected;
-      case 2:
-        return PrinterStatus.inWork;
-      case 9:
-        return PrinterStatus.notWorking;
-      default:
-        return PrinterStatus.notWorking;
-    }
-  }
-}
-
 enum PrinterModel {
   markemImaje9040,
   markemImaje9410,
@@ -97,7 +54,7 @@ class Printer {
   final String port;
   final String uid;
   final String rm;
-  final int statusCode;
+  final bool isWorking; // Булево значение для статуса
 
   Printer({
     required this.id,
@@ -107,10 +64,14 @@ class Printer {
     required this.port,
     required this.uid,
     required this.rm,
-    required this.statusCode,
+    required this.isWorking,
   });
 
   factory Printer.fromJson(Map<String, dynamic> json) {
+    // Преобразуем числовой код в булево значение
+    // 1 = true (в работе), 0 = false (не в работе)
+    final bool isWorking = json['status'] == 1;
+    
     return Printer(
       id: json['id'] ?? 0,
       number: json['number'],
@@ -119,11 +80,15 @@ class Printer {
       port: json['port'],
       uid: json['uid'],
       rm: json['rm'] ?? '',
-      statusCode: json['status'],
+      isWorking: isWorking,
     );
   }
 
   Map<String, dynamic> toJson() {
+    // Преобразуем булево значение в числовой код
+    // true (в работе) = 1, false (не в работе) = 0
+    final int statusCode = isWorking ? 1 : 0;
+    
     return {
       'id': id,
       'number': number,
@@ -136,6 +101,8 @@ class Printer {
     };
   }
 
-  PrinterStatus get status => PrinterStatusExtension.fromCode(statusCode);
   PrinterModel get model => PrinterModelExtension.fromCode(modelCode);
+  
+  // Геттер для получения текстового представления статуса
+  String get status => isWorking ? 'В работе' : 'Не в работе';
 }
