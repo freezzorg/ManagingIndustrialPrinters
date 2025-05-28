@@ -41,11 +41,29 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Future<void> _detectDeviceType() async {
     if (!Platform.isAndroid) return;
     final deviceInfo = await DeviceInfoPlugin().androidInfo;
+    final manufacturer = deviceInfo.manufacturer.toLowerCase();
     final model = deviceInfo.model.toLowerCase();
-    final isHardware = model.contains('zebra') || model.contains('urovo');
+
+    // Список производителей ТСД
+    final tsdManufacturers = [
+      'zebra technologies',
+      'motorola solutions',
+      'honeywell',
+      'datalogic',
+      'cipherlab',
+      'keyence',
+      'unitech'
+    ];
+    bool isTsd = tsdManufacturers.contains(manufacturer.toLowerCase());
+
+    // Дополнительная проверка для Motorola
+    if (manufacturer == 'motorola solutions') {
+      isTsd = model.startsWith('mc');
+    }
+
     setState(() {
-      hasHardwareScanner = isHardware;
-      isHardwareScannerMode = isHardware;
+      hasHardwareScanner = isTsd;
+      isHardwareScannerMode = isTsd;
       if (isHardwareScannerMode) {
         Future.microtask(() => _scanFocusNode.requestFocus());
       }
@@ -82,12 +100,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
           setState(() {
             printerData = scannedData;
           });
-          _showMessage("Принтер отсканирован");
+          // _showMessage("Принтер отсканирован");
         } else {
           setState(() {
             lineData = scannedData;
           });
-          _showMessage("Линия отсканирована");
+          // _showMessage("Линия отсканирована");
         }
         Future.delayed(const Duration(milliseconds: 500), () {
           _scanController.clear();
@@ -379,6 +397,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             controller: _scanController,
                             focusNode: _scanFocusNode,
                             autofocus: true,
+                            keyboardType: TextInputType.none, // Отключает клавиатуру
                             decoration: const InputDecoration(
                               hintText: 'Сканирование',
                             ),
