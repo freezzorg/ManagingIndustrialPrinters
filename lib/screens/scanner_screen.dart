@@ -21,6 +21,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   String? lineData;
   String? printerData;
+  bool? isPrinterBound;
   bool isScanningLine = false;
   bool isScanningPrinter = false;
   bool processing = false;
@@ -54,9 +55,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
       'keyence',
       'unitech'
     ];
-    bool isTsd = tsdManufacturers.contains(manufacturer.toLowerCase());
+    bool isTsd = tsdManufacturers.contains(manufacturer);
 
-    // Дополнительная проверка для Motorola
     if (manufacturer == 'motorola solutions') {
       isTsd = model.startsWith('mc');
     }
@@ -97,15 +97,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (scannedData.contains(',')) {
       try {
         if (_isPrinterQrCode(scannedData)) {
+          final printerInfo = _parsePrinterInfo(scannedData);
           setState(() {
             printerData = scannedData;
+            isPrinterBound = printerInfo.status;
+            lineData = null;
           });
-          // _showMessage("Принтер отсканирован");
-        } else {
+        } else if (printerData != null && isPrinterBound == true) {
           setState(() {
             lineData = scannedData;
           });
-          // _showMessage("Линия отсканирована");
         }
         Future.delayed(const Duration(milliseconds: 500), () {
           _scanController.clear();
@@ -130,7 +131,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _startScanLine() {
-    if (isHardwareScannerMode) return;
+    if (isHardwareScannerMode || printerData == null || isPrinterBound == false) {
+      return;
+    }
     setState(() {
       isScanningLine = true;
       isScanningPrinter = false;
@@ -157,11 +160,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final code = barcode.rawValue;
       if (code == null) continue;
       setState(() {
-        if (isScanningLine) {
+        if (isScanningLine && printerData != null && isPrinterBound == true) {
           lineData = code;
           isScanningLine = false;
         } else if (isScanningPrinter) {
-          printerData = code;
+          try {
+            final printerInfo = _parsePrinterInfo(code);
+            printerData = code;
+            isPrinterBound = printerInfo.status;
+            lineData = null;
+          } catch (e) {
+            _showMessage("Неверный QR-код принтера");
+          }
           isScanningPrinter = false;
         }
       });
@@ -229,8 +239,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Принтер уже привязан'),
-        content:
-            Text('Принтер уже привязан к линии $currentRm. Перепривязать?'),
+        content: Text('Принтер уже привязан к линии $currentRm. Перепривязать?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(RebindAction.cancel),
@@ -252,8 +261,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final lineUid = _parseLineUid(lineData!);
       final lineRm = _buildRm(lineData!);
       final printerInfo = _parsePrinterInfo(printerData!);
-      final serverPrinter =
-          await api.getPrinterByIdOrUid(id: printerInfo.number);
+      final serverPrinter = await api.getPrinterByIdOrUid(id: printerInfo.number);
       if (serverPrinter == null) {
         throw Exception('Принтер не найден на сервере');
       }
@@ -290,8 +298,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
       final printerInfo = _parsePrinterInfo(printerData!);
-      final serverPrinter =
-          await api.getPrinterByIdOrUid(id: printerInfo.number);
+      final serverPrinter = await api.getPrinterByIdOrUid(id: printerInfo.number);
       if (serverPrinter == null) {
         throw Exception('Принтер не найден на сервере');
       }
@@ -320,6 +327,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() {
       lineData = null;
       printerData = null;
+      isPrinterBound = null;
       isScanningLine = false;
       isScanningPrinter = false;
       processing = false;
@@ -336,8 +344,39 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void Function()? _getActionButtonOnPressed() {
+    if (processing) return null;
+    if (printerData != null && isPrinterBound == false) {
+      return _unbindPrinter;
+    } else if (printerData != null && isPrinterBound == true && lineData != null) {
+      return _bindPrinter;
+    }
+    return null;
+  }
+
+  Widget _getActionButtonChild() {
+    if (processing) {
+      return const CircularProgressIndicator(color: Colors.white);
+    } else if (printerData != null && isPrinterBound == false) {
+      return const Text('Отвязать');
+    } else if (printerData != null && isPrinterBound == true && lineData != null) {
+      return const Text('Привязать');
+    }
+    return const Text('Действие недоступно');
+  }
+
+  Color? _getActionButtonColor() {
+    if (processing) {
+      return Colors.grey;
+    } else if (printerData != null && isPrinterBound == false) {
+      return Colors.red; // Для "Отвязать"
+    } else if (printerData != null && isPrinterBound == true && lineData != null) {
+      return Colors.green; // Для "Привязать"
+    }
+    return Colors.grey;
   }
 
   @override
@@ -397,7 +436,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             controller: _scanController,
                             focusNode: _scanFocusNode,
                             autofocus: true,
-                            keyboardType: TextInputType.none, // Отключает клавиатуру
+                            keyboardType: TextInputType.none,
                             decoration: const InputDecoration(
                               hintText: 'Сканирование',
                             ),
@@ -483,32 +522,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: (lineData != null && printerData != null && !processing)
-                              ? _bindPrinter
-                              : null,
+                          onPressed: _getActionButtonOnPressed(),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
+                            backgroundColor: _getActionButtonColor(),
                           ),
-                          child: processing && lineData != null && printerData != null
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text('Привязать'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: (printerData != null && !processing)
-                              ? _unbindPrinter
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                          ),
-                          child: processing && printerData != null && lineData == null
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text('Отвязать'),
+                          child: _getActionButtonChild(),
                         ),
                       ),
                     ],
