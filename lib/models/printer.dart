@@ -49,60 +49,51 @@ extension PrinterModelExtension on PrinterModel {
 class Printer {
   final int id;
   final int number;
-  final int modelCode;
+  final int model;
   final String ip;
   final String port;
   final String uid;
   final String rm;
-  final bool isWorking; // Булево значение для статуса
+  final bool status;
 
   Printer({
     required this.id,
     required this.number,
-    required this.modelCode,
+    required this.model,
     required this.ip,
     required this.port,
     required this.uid,
     required this.rm,
-    required this.isWorking,
+    required this.status,
   });
 
   factory Printer.fromJson(Map<String, dynamic> json) {
-    // Преобразуем числовой код в булево значение
-    // 1 = true (в работе), 0 = false (не в работе)
-    final bool isWorking = json['status'] == 1;
-    
     return Printer(
       id: json['id'] ?? 0,
       number: json['number'],
-      modelCode: json['model'],
+      model: json['model'],
       ip: json['ip'],
       port: json['port'],
       uid: json['uid'],
       rm: json['rm'] ?? '',
-      isWorking: isWorking,
+      status: json['status'],
     );
   }
 
   Map<String, dynamic> toJson() {
-    // Преобразуем булево значение в числовой код
-    // true (в работе) = 1, false (не в работе) = 0
-    final int statusCode = isWorking ? 1 : 0;
-    
     return {
       'id': id,
       'number': number,
-      'model': modelCode,
+      'model': model,
       'ip': ip,
       'port': port,
       'uid': uid,
       'rm': rm,
-      'status': statusCode,
+      'status': status,
     };
   }
 
-  PrinterModel get model => PrinterModelExtension.fromCode(modelCode);
-  
-  // Геттер для получения текстового представления статуса
-  String get status => isWorking ? 'В работе' : 'Не в работе';
+  PrinterModel get modelEnum => PrinterModelExtension.fromCode(model);
+
+  String get statusText => status ? 'В работе' : 'Не в работе';
 }

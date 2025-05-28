@@ -21,7 +21,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   final _formKey = GlobalKey<FormState>();
 
   PrinterModel? _selectedModel;
-  bool _isWorking = false; // Булев статус вместо enum
+  bool _isWorking = false;
   bool _isEditMode = false;
   Printer? _existingPrinter;
   bool _isInitialized = false;
@@ -40,8 +40,8 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         portController.text = args.port;
         uidController.text = args.uid;
         rmController.text = args.rm;
-        _selectedModel = args.model;
-        _isWorking = args.isWorking; // Используем булев статус
+        _selectedModel = PrinterModelExtension.fromCode(args.model);
+        _isWorking = args.status;
       } else if (args is int) {
         // Режим добавления
         numberController.text = args.toString();
@@ -252,7 +252,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                     'port': portController.text.trim(),
                     'uid': uid,
                     'rm': rmController.text.trim(),
-                    'status': _isWorking ? 1 : 0, // true = 1, false = 0
+                    'status': _isWorking,
                   };
 
                   try {

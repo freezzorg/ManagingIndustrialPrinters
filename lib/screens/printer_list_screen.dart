@@ -192,8 +192,8 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _row('№', p.number.toString()),
-                          _row('Модель', p.model.name),
-                          _row('Статус', p.status),
+                          _row('Модель', p.modelEnum.name),
+                          _row('Статус', p.statusText),
                           _row('Адрес', '${p.ip}:${p.port}'),
                           if (p.rm.trim().isNotEmpty) _row('', p.rm),
                         ],

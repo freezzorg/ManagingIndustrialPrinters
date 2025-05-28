@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mip/providers/theme_provider.dart';
 import 'package:mip/services/api_service.dart';
+// import 'package:device_info_plus/device_info_plus.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -10,6 +11,7 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final apiService = Provider.of<ApiService>(context);
+    // final deviceInfoPlugin = DeviceInfoPlugin();
 
     final baseUrlController = TextEditingController(text: apiService.baseUrl);
 
@@ -98,6 +100,31 @@ class MainScreen extends StatelessWidget {
               label: const Text('Список принтеров'),
               style: buttonStyle,
             ),
+            // const SizedBox(height: 16),
+            // FutureBuilder<AndroidDeviceInfo>(
+            //   future: deviceInfoPlugin.androidInfo,
+            //   builder: (context, snapshot) {
+            //     if (snapshot.connectionState == ConnectionState.waiting) {
+            //       return const CircularProgressIndicator();
+            //     }
+            //     if (snapshot.hasError) {
+            //       return Text('Ошибка: ${snapshot.error}');
+            //     }
+            //     final deviceInfo = snapshot.data!;
+
+            //     return TextField(
+            //       readOnly: true,
+            //       maxLines: 20,
+            //       controller: TextEditingController(
+            //         text: '$deviceInfo',
+            //       ),
+            //       decoration: const InputDecoration(
+            //         labelText: 'Информация об устройстве',
+            //         border: OutlineInputBorder(),
+            //       ),
+            //     );
+            //   },
+            // ),
           ],
         ),
       ),

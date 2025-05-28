@@ -53,7 +53,7 @@ class ApiService extends ChangeNotifier {
       // RM линии — пустое для пустого UID, иначе переданное значение
       'rm': isUidEmpty ? '' : data['rm'],
       // Статус — 0 (не в работе) при пустом UID, иначе переданный или 1 (в работе) по умолчанию
-      'status': isUidEmpty ? 0 : (data['status'] ?? 1),
+      'status': isUidEmpty ? false : (data['status'] ?? true),
     };
   }
 

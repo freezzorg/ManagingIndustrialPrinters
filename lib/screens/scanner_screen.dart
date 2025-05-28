@@ -228,10 +228,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return Printer(
       id: 0,
       number: int.parse(parts[0].trim()),
-      modelCode: int.parse(parts[1].trim()),
+      model: int.parse(parts[1].trim()),
       ip: parts[2].trim(),
       port: parts[3].trim(),
-      isWorking: isWorking,
+      status: isWorking,
       uid: '',
       rm: '',
     );
@@ -273,7 +273,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
 
       // Проверяем, привязан ли принтер к линии
-      if (serverPrinter.isWorking && serverPrinter.rm.isNotEmpty) {
+      if (serverPrinter.status && serverPrinter.rm.isNotEmpty) {
         final action = await _showRebindDialog(serverPrinter.rm);
         if (action == RebindAction.cancel) {
           _reset();
@@ -284,12 +284,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final payload = {
         'id': serverPrinter.id,
         'number': serverPrinter.number,
-        'model': serverPrinter.model.code,
+        'model': serverPrinter.model,
         'ip': serverPrinter.ip,
         'port': serverPrinter.port,
         'uid': lineUid,
         'rm': lineRm,
-        'status': 1, // В работе = 1
+        'status': true,
       };
 
       await api.updatePrinter(payload);
@@ -317,12 +317,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final payload = {
         'id': serverPrinter.id,
         'number': serverPrinter.number,
-        'model': serverPrinter.model.code,
+        'model': serverPrinter.model,
         'ip': serverPrinter.ip,
         'port': serverPrinter.port,
         'uid': '00000000-0000-0000-0000-000000000000',
         'rm': '',
-        'status': 0, // Не в работе = 0
+        'status': false,
       };
 
       await api.updatePrinter(payload);
