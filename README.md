@@ -19,10 +19,10 @@ Managing Industrial Printers
 │   ├── services/                       # Сервисы
 │   │   └── api_service.dart            # HTTP-запросы к серверу PrintComm
 │   └── screens/                        # Экраны приложения
-│       ├── main_screen.dart            # Стартовая точка
 │       ├── scanner_screen.dart         # Сканирование QR-кодов и логика привязки
 │       ├── manual_entry_screen.dart    # Ручной ввод данных принтера (редактирование данных принтера и добавление принтера)
-│       └── printer_list_screen.dart    # Просмотр и редактирование принтеров
+│       ├── printer_list_screen.dart    # Просмотр и редактирование принтеров
+│       └── settings_screen.dart        # Настройки приложения
 └── assets/                             # Иконки приложения
     ├── app_icon_foreground.png         # Иконка приложения
     └── app_icon_background.png         # Фон приложения

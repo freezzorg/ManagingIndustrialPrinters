@@ -46,7 +46,7 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const ScannerScreen(), // Главный экран — ScannerScreen
+        '/': (context) => const ScannerScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/manual-entry': (context) => const ManualEntryScreen(),
         '/printers': (context) => const PrinterListScreen(),
