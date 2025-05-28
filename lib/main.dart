@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mip/screens/main_screen.dart';
-import 'package:mip/screens/scanner_screen.dart';
-import 'package:mip/screens/manual_entry_screen.dart';
-import 'package:mip/screens/printer_list_screen.dart';
-import 'package:mip/services/api_service.dart';
-import 'package:mip/providers/theme_provider.dart';
+import 'screens/scanner_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/manual_entry_screen.dart';
+import 'screens/printer_list_screen.dart';
+import 'services/api_service.dart';
+import 'providers/theme_provider.dart';
 
 void main() {
   runApp(
@@ -46,8 +46,8 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const MainScreen(),
-        '/scan': (context) => const ScannerScreen(),
+        '/': (context) => const ScannerScreen(), // Главный экран — ScannerScreen
+        '/settings': (context) => const SettingsScreen(),
         '/manual-entry': (context) => const ManualEntryScreen(),
         '/printers': (context) => const PrinterListScreen(),
       },
