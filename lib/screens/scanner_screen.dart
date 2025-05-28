@@ -274,10 +274,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
       final payload = {
         'id': serverPrinter.id,
-        'number': serverPrinter.number,
-        'model': serverPrinter.model,
-        'ip': serverPrinter.ip,
-        'port': serverPrinter.port,
+        'number': printerInfo.number,
+        'model': printerInfo.model,
+        'ip': printerInfo.ip,
+        'port': printerInfo.port,
         'uid': lineUid,
         'rm': lineRm,
         'status': true,
@@ -304,10 +304,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
       final payload = {
         'id': serverPrinter.id,
-        'number': serverPrinter.number,
-        'model': serverPrinter.model,
-        'ip': serverPrinter.ip,
-        'port': serverPrinter.port,
+        'number': printerInfo.number,
+        'model': printerInfo.model,
+        'ip': printerInfo.ip,
+        'port': printerInfo.port,
         'uid': '00000000-0000-0000-0000-000000000000',
         'rm': '',
         'status': false,
