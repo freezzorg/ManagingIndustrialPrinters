@@ -47,10 +47,17 @@ android {
     defaultConfig {
         applicationId = "kz.kcep.mip"
         minSdk = 21
-        targetSdk = 33 // <= под Android 10
+        targetSdk = 29 // <= под Android 10
         versionCode = 1
         versionName = "1.0"
 		multiDexEnabled = true
+
+        ndk {
+            abiFilters.clear()
+            abiFilters.add("armeabi-v7a")
+            abiFilters.add("arm64-v8a")
+            abiFilters.add("x86")
+        }
     }
 	
 	buildTypes {
