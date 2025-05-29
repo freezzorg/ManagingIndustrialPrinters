@@ -379,147 +379,204 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   @override
-Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Сканирование'),
+        title: const Text('Сканирование', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.blueAccent,
+        elevation: 4,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings, color: Colors.white),
             onPressed: () => Navigator.pushNamed(context, '/settings'),
           ),
           IconButton(
-            icon: Icon(isHardwareScannerMode ? Icons.qr_code_scanner : Icons.camera_alt),
+            icon: Icon(
+              isHardwareScannerMode ? Icons.qr_code_scanner : Icons.camera_alt,
+              color: Colors.white,
+            ),
             onPressed: _toggleScannerMode,
             tooltip: isHardwareScannerMode ? 'Переключиться на камеру' : 'Переключиться на аппаратный сканер',
           ),
           if (!isHardwareScannerMode)
             IconButton(
-              icon: const Icon(Icons.flash_on),
+              icon: const Icon(Icons.flash_on, color: Colors.white),
               onPressed: () => cameraController.toggleTorch(),
             ),
         ],
       ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              if (!isHardwareScannerMode) // Верхняя часть только для режима камеры
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    color: Colors.black54,
-                    child: (isScanningLine || isScanningPrinter)
-                      ? MobileScanner(
-                          controller: cameraController,
-                          onDetect: _onDetect,
-                        )
-                      : const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.camera_alt,
-                                size: 80,
-                                color: Colors.white70,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blueGrey, Colors.white],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                if (!isHardwareScannerMode) // Верхняя часть для режима камеры
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      margin: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueAccent, width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: (isScanningLine || isScanningPrinter)
+                            ? MobileScanner(
+                                controller: cameraController,
+                                onDetect: _onDetect,
+                              )
+                            : const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.camera_alt,
+                                      size: 80,
+                                      color: Colors.white70,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'Нажмите кнопку ниже, чтобы начать сканирование',
+                                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Нажмите кнопку ниже, чтобы начать сканирование',
-                                style: TextStyle(color: Colors.white70),
-                                textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  flex: isHardwareScannerMode ? 1 : 2,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          child: ListTile(
+                            leading: const Icon(Icons.print, color: Colors.blueAccent),
+                            title: Text(
+                              'Принтер: ${_getDisplayPrinterNumber(printerData)}',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          child: ListTile(
+                            leading: const Icon(Icons.linear_scale, color: Colors.blueAccent),
+                            title: Text(
+                              'Линия: ${_getDisplayLineName(lineData)}',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (!isHardwareScannerMode) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.print),
+                                  label: const Text('Сканировать принтер'),
+                                  onPressed: _startScanPrinter,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    foregroundColor: Colors.white,
+                                    elevation: 2,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                  ),
-                ),
-              Expanded(
-                flex: isHardwareScannerMode ? 1 : 2, // Полный экран для ТСД
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        height: 30,
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Принтер: ${_getDisplayPrinterNumber(printerData)}',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                      Container(
-                        height: 30,
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Линия: ${_getDisplayLineName(lineData)}',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (!isHardwareScannerMode) ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.print),
-                                label: const Text('Сканировать принтер'),
-                                onPressed: _startScanPrinter,
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.linear_scale),
+                                  label: const Text('Сканировать линию'),
+                                  onPressed: _startScanLine,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    foregroundColor: Colors.white,
+                                    elevation: 2,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         Row(
                           children: [
                             Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.linear_scale),
-                                label: const Text('Сканировать линию'),
-                                onPressed: _startScanLine,
+                              child: ElevatedButton(
+                                onPressed: _getActionButtonOnPressed(),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _getActionButtonColor(),
+                                  foregroundColor: Colors.white,
+                                  elevation: 2,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _getActionButtonChild(),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                      ],
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _getActionButtonOnPressed(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _getActionButtonColor(),
-                              ),
-                              child: _getActionButtonChild(),
-                            ),
+                        TextButton(
+                          onPressed: () => _reset(),
+                          child: const Text(
+                            'Сброс',
+                            style: TextStyle(color: Colors.blueAccent, fontSize: 16),
                           ),
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () => _reset(),
-                        child: const Text('Сброс'),
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (isHardwareScannerMode) // TextField для ТСД
+              Positioned(
+                left: -1000,
+                child: TextField(
+                  controller: _scanController,
+                  focusNode: _scanFocusNode,
+                  autofocus: true,
+                  keyboardType: TextInputType.none,
+                  decoration: const InputDecoration(
+                    hintText: '',
                   ),
                 ),
               ),
-            ],
-          ),
-          if (isHardwareScannerMode) // TextField для ТСД
-            Positioned(
-              left: -1000,
-              child: TextField(
-                controller: _scanController,
-                focusNode: _scanFocusNode,
-                autofocus: true,
-                keyboardType: TextInputType.none,
-                decoration: const InputDecoration(
-                  hintText: 'Сканирование',
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
