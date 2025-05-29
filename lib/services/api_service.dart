@@ -8,7 +8,7 @@ class ApiService extends ChangeNotifier {
   static const _prefsBaseUrlKey = 'baseUrl';
   static const _zeroUuid = '00000000-0000-0000-0000-000000000000';
 
-  String _baseUrl = 'http://10.10.8.80:21010';
+  String _baseUrl = 'http://10.10.8.21:21010';
 
   String get baseUrl => _baseUrl;
 
@@ -21,14 +21,12 @@ class ApiService extends ChangeNotifier {
     final savedUrl = prefs.getString(_prefsBaseUrlKey);
     if (savedUrl != null && savedUrl.isNotEmpty) {
       _baseUrl = savedUrl;
-      print("Loaded baseUrl: $_baseUrl"); // Для отладки
       notifyListeners();
     }
   }
 
   Future<void> updateBaseUrl(String newUrl) async {
     _baseUrl = newUrl;
-    print("Updated baseUrl: $_baseUrl"); // Для отладки
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
@@ -72,7 +70,6 @@ class ApiService extends ChangeNotifier {
       'cmdbody': jsonEncode(printerQuery),
     });
 
-    print("Sending GetPrinter request: $body"); // Для отладки
     try {
       final response = await http
           .post(
@@ -81,9 +78,6 @@ class ApiService extends ChangeNotifier {
             body: body,
           )
           .timeout(const Duration(seconds: 10));
-
-      print(
-          "GetPrinter response: ${response.statusCode} ${response.body}"); // Для отладки
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -96,7 +90,6 @@ class ApiService extends ChangeNotifier {
             'Ошибка получения принтера: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print("Error in getPrinterByIdOrUid: $e"); // Для отладки
       throw Exception('Ошибка получения принтера: $e');
     }
   }
@@ -107,7 +100,6 @@ class ApiService extends ChangeNotifier {
       'cmdname': 'GetAllPrinters',
     });
 
-    print("Sending GetAllPrinters request: $body"); // Для отладки
     try {
       final response = await http
           .post(
@@ -116,9 +108,6 @@ class ApiService extends ChangeNotifier {
             body: body,
           )
           .timeout(const Duration(seconds: 10));
-
-      print(
-          "GetAllPrinters response: ${response.statusCode} ${response.body}"); // Для отладки
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -134,7 +123,6 @@ class ApiService extends ChangeNotifier {
             'Ошибка получения принтеров: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print("Error in getPrinters: $e"); // Для отладки
       throw Exception('Ошибка получения принтеров: $e');
     }
   }
@@ -149,7 +137,6 @@ class ApiService extends ChangeNotifier {
       'cmdbody': jsonEncode(printer),
     });
 
-    print("Sending PutPrinter request: $body"); // Для отладки
     try {
       final response = await http
           .post(
@@ -159,15 +146,11 @@ class ApiService extends ChangeNotifier {
           )
           .timeout(const Duration(seconds: 10));
 
-      print(
-          "PutPrinter response: ${response.statusCode} ${response.body}"); // Для отладки
-
       if (response.statusCode != 200) {
         throw Exception(
             'Ошибка добавления принтера: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print("Error in addPrinter: $e"); // Для отладки
       throw Exception('Ошибка добавления принтера: $e');
     }
   }
@@ -182,7 +165,6 @@ class ApiService extends ChangeNotifier {
       'cmdbody': jsonEncode(printer),
     });
 
-    print("Sending UpdPrinter request: $body"); // Для отладки
     try {
       final response = await http
           .post(
@@ -192,15 +174,11 @@ class ApiService extends ChangeNotifier {
           )
           .timeout(const Duration(seconds: 10));
 
-      print(
-          "UpdPrinter response: ${response.statusCode} ${response.body}"); // Для отладки
-
       if (response.statusCode != 200) {
         throw Exception(
             'Ошибка обновления принтера: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print("Error in updatePrinter: $e"); // Для отладки
       throw Exception('Ошибка обновления принтера: $e');
     }
   }
@@ -212,7 +190,6 @@ class ApiService extends ChangeNotifier {
       'cmdbody': jsonEncode({'id': id}),
     });
 
-    print("Sending DelPrinter request: $body"); // Для отладки
     try {
       final response = await http
           .post(
@@ -222,15 +199,11 @@ class ApiService extends ChangeNotifier {
           )
           .timeout(const Duration(seconds: 10));
 
-      print(
-          "DelPrinter response: ${response.statusCode} ${response.body}"); // Для отладки
-
       if (response.statusCode != 200) {
         throw Exception(
             'Ошибка удаления принтера: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print("Error in deletePrinter: $e"); // Для отладки
       throw Exception('Ошибка удаления принтера: $e');
     }
   }

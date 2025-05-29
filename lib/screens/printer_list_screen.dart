@@ -21,9 +21,8 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
 
   void _loadPrinters() {
     final api = Provider.of<ApiService>(context, listen: false);
-    print("Loading printers..."); // Для отладки
+
     _futurePrinters = api.getPrinters().catchError((e) {
-      print("Error in getPrinters: $e"); // Для отладки
       throw e;
     });
   }
@@ -153,7 +152,6 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            print("FutureBuilder error: ${snapshot.error}"); // Для отладки
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -93,7 +93,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final scannedData = _scanController.text;
     if (scannedData.isEmpty || scannedData == _lastScannedData) return;
     _lastScannedData = scannedData;
-    print("Отсканировано: $scannedData");
     if (scannedData.contains(',')) {
       try {
         if (_isPrinterQrCode(scannedData)) {
