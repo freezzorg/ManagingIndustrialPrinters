@@ -32,7 +32,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     if (!_isInitialized) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Printer) {
-        // Режим редактирования
         _isEditMode = true;
         _existingPrinter = args;
         numberController.text = args.number.toString();
@@ -43,7 +42,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         _selectedModel = PrinterModelExtension.fromCode(args.model);
         _isWorking = args.status;
       } else if (args is int) {
-        // Режим добавления
         numberController.text = args.toString();
       }
       _isInitialized = true;
@@ -78,13 +76,13 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     setState(() {
       if (isEmpty) {
         rmController.clear();
-        _isWorking = false; // Если нет UID, то принтер не в работе
+        _isWorking = false;
       } else if (isValid) {
         if (rmController.text.trim().isEmpty) {
           rmController.text = 'PM';
         }
         if (!_isWorking) {
-          _isWorking = true; // Если есть UID, то принтер в работе
+          _isWorking = true;
         }
       }
     });
@@ -93,187 +91,262 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final apiService = Provider.of<ApiService>(context, listen: false);
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditMode ? 'Редактировать принтер' : 'Добавить принтер'),
+        title: Text(
+          _isEditMode ? 'Редактировать принтер' : 'Добавить принтер',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.blueAccent,
+        elevation: 4,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              // Номер принтера
-              TextFormField(
-                controller: numberController,
-                enabled: !_isEditMode,
-                decoration: const InputDecoration(labelText: 'Номер принтера'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите номер';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Неверный номер';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 8),
-
-              // Модель принтера
-              DropdownButtonFormField<PrinterModel>(
-                value: _selectedModel,
-                decoration: const InputDecoration(labelText: 'Модель принтера'),
-                items: PrinterModel.values
-                    .where((m) => m != PrinterModel.unknown)
-                    .map((m) => DropdownMenuItem(
-                          value: m,
-                          child: Text(m.name),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedModel = v),
-                validator: (v) => v == null ? 'Выберите модель' : null,
-              ),
-
-              const SizedBox(height: 8),
-
-              // IP адрес
-              TextFormField(
-                controller: ipController,
-                decoration:
-                    const InputDecoration(labelText: 'IP адрес принтера'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите IP';
-                  }
-                  if (!_isValidIp(value)) {
-                    return 'Неверный формат IP';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 8),
-
-              // Порт принтера
-              TextFormField(
-                controller: portController,
-                decoration: const InputDecoration(labelText: 'Порт принтера'),
-                keyboardType: TextInputType.number,
-                validator: (value) =>
-                    (value == null || value.isEmpty) ? 'Введите порт' : null,
-              ),
-
-              const SizedBox(height: 8),
-
-              // UID линии с кнопкой очистки
-              TextFormField(
-                controller: uidController,
-                decoration: InputDecoration(
-                  labelText: 'UID линии',
-                  suffixIcon: uidController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            uidController.clear();
-                            _validateUidAndUpdateFields();
-                          },
-                        )
-                      : null,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blueGrey, Colors.white],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.print, color: Colors.blueAccent),
+                    title: TextFormField(
+                      controller: numberController,
+                      enabled: !_isEditMode,
+                      decoration: const InputDecoration(
+                        labelText: 'Номер принтера',
+                        border: InputBorder.none,
+                      ),
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(color: textColor),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Введите номер';
+                        }
+                        if (int.tryParse(value) == null) {
+                          return 'Неверный номер';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
                 ),
-                onChanged: (_) => _validateUidAndUpdateFields(),
-              ),
-
-              const SizedBox(height: 8),
-
-              // PM линии
-              TextFormField(
-                controller: rmController,
-                decoration: const InputDecoration(labelText: 'PM линии'),
-                validator: (value) {
-                  if (_isValidUid(uidController.text) &&
-                      (value == null || value.trim().isEmpty)) {
-                    return 'Введите PM линии';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 8),
-
-              // Статус принтера (теперь булев)
-              DropdownButtonFormField<bool>(
-                value: _isWorking,
-                decoration: const InputDecoration(labelText: 'Статус принтера'),
-                items: const [
-                  DropdownMenuItem(
-                    value: true,
-                    child: Text('В работе'),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.devices, color: Colors.blueAccent),
+                    title: DropdownButtonFormField<PrinterModel>(
+                      value: _selectedModel,
+                      decoration: const InputDecoration(
+                        labelText: 'Модель принтера',
+                        border: InputBorder.none,
+                      ),
+                      style: TextStyle(color: textColor),
+                      items: PrinterModel.values
+                          .where((m) => m != PrinterModel.unknown)
+                          .map((m) => DropdownMenuItem(
+                                value: m,
+                                child: Text(m.name, style: TextStyle(color: textColor)),
+                              ))
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedModel = v),
+                      validator: (v) => v == null ? 'Выберите модель' : null,
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: false,
-                    child: Text('Не в работе'),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.settings_ethernet, color: Colors.blueAccent),
+                    title: TextFormField(
+                      controller: ipController,
+                      decoration: const InputDecoration(
+                        labelText: 'IP адрес принтера',
+                        border: InputBorder.none,
+                      ),
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(color: textColor),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Введите IP';
+                        }
+                        if (!_isValidIp(value)) {
+                          return 'Неверный формат IP';
+                        }
+                        return null;
+                      },
+                    ),
                   ),
-                ],
-                onChanged: (v) => setState(() => _isWorking = v ?? false),
-                validator: (value) {
-                  final text = uidController.text.trim();
-                  final isEmpty = text.isEmpty || text == _zeroUuid;
-                  final isValid = _isValidUid(text);
-                  
-                  if (isEmpty && value == true) {
-                    return 'Если UID пуст, статус должен быть "Не в работе"';
-                  }
-                  if (isValid && value == false) {
-                    return 'Для указанного UID статус должен быть "В работе"';
-                  }
-                  return null;
-                },
-              ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.settings_ethernet, color: Colors.blueAccent),
+                    title: TextFormField(
+                      controller: portController,
+                      decoration: const InputDecoration(
+                        labelText: 'Порт принтера',
+                        border: InputBorder.none,
+                      ),
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(color: textColor),
+                      validator: (value) => (value == null || value.isEmpty) ? 'Введите порт' : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.linear_scale, color: Colors.blueAccent),
+                    title: TextFormField(
+                      controller: uidController,
+                      decoration: InputDecoration(
+                        labelText: 'UID линии',
+                        border: InputBorder.none,
+                        suffixIcon: uidController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.blueAccent),
+                                onPressed: () {
+                                  uidController.clear();
+                                  _validateUidAndUpdateFields();
+                                },
+                              )
+                            : null,
+                      ),
+                      style: TextStyle(color: textColor),
+                      onChanged: (_) => _validateUidAndUpdateFields(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.label, color: Colors.blueAccent),
+                    title: TextFormField(
+                      controller: rmController,
+                      decoration: const InputDecoration(
+                        labelText: 'PM линии',
+                        border: InputBorder.none,
+                      ),
+                      style: TextStyle(color: textColor),
+                      validator: (value) {
+                        if (_isValidUid(uidController.text) && (value == null || value.trim().isEmpty)) {
+                          return 'Введите PM линии';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: const Icon(Icons.power_settings_new, color: Colors.blueAccent),
+                    title: DropdownButtonFormField<bool>(
+                      value: _isWorking,
+                      decoration: const InputDecoration(
+                        labelText: 'Статус принтера',
+                        border: InputBorder.none,
+                      ),
+                      style: TextStyle(color: textColor),
+                      items: [
+                        DropdownMenuItem(
+                          value: true,
+                          child: Text('В работе', style: TextStyle(color: textColor)),
+                        ),
+                        DropdownMenuItem(
+                          value: false,
+                          child: Text('Не в работе', style: TextStyle(color: textColor)),
+                        ),
+                      ],
+                      onChanged: (v) => setState(() => _isWorking = v ?? false),
+                      validator: (value) {
+                        final text = uidController.text.trim();
+                        final isEmpty = text.isEmpty || text == _zeroUuid;
+                        final isValid = _isValidUid(text);
+                        if (isEmpty && value == true) {
+                          return 'Если UID пуст, статус должен быть "Не в работе"';
+                        }
+                        if (isValid && value == false) {
+                          return 'Для указанного UID статус должен быть "В работе"';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!_formKey.currentState!.validate()) return;
 
-              const SizedBox(height: 20),
+                    final rawUid = uidController.text.trim();
+                    final uid = rawUid.isEmpty ? _zeroUuid : rawUid;
 
-              // Кнопка сохранить
-              ElevatedButton(
-                onPressed: () async {
-                  if (!_formKey.currentState!.validate()) return;
+                    final data = {
+                      'number': int.parse(numberController.text),
+                      'model': _selectedModel!.code,
+                      'ip': ipController.text.trim(),
+                      'port': portController.text.trim(),
+                      'uid': uid,
+                      'rm': rmController.text.trim(),
+                      'status': _isWorking,
+                    };
 
-                  final rawUid = uidController.text.trim();
-                  final uid = rawUid.isEmpty ? _zeroUuid : rawUid;
-
-                  final data = {
-                    'number': int.parse(numberController.text),
-                    'model': _selectedModel!.code,
-                    'ip': ipController.text.trim(),
-                    'port': portController.text.trim(),
-                    'uid': uid,
-                    'rm': rmController.text.trim(),
-                    'status': _isWorking,
-                  };
-
-                  try {
-                    if (_isEditMode) {
-                      data['id'] = _existingPrinter!.id;
-                      await apiService.updatePrinter(data);
-                    } else {
-                      await apiService.addPrinter(data);
+                    try {
+                      if (_isEditMode) {
+                        data['id'] = _existingPrinter!.id;
+                        await apiService.updatePrinter(data);
+                      } else {
+                        await apiService.addPrinter(data);
+                      }
+                      if (context.mounted) Navigator.pop(context, true);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Ошибка: $e', style: const TextStyle(color: Colors.white)),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
                     }
-                    if (context.mounted) Navigator.pop(context, true);
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Ошибка: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Сохранить'),
-              ),
-            ],
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Сохранить', style: TextStyle(fontSize: 16)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

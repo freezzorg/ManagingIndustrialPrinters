@@ -21,7 +21,6 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
 
   void _loadPrinters() {
     final api = Provider.of<ApiService>(context, listen: false);
-
     _futurePrinters = api.getPrinters().catchError((e) {
       throw e;
     });
@@ -57,7 +56,6 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
   }
 
   Future<void> _confirmDelete(Printer printer) async {
-    // Сохраняем мессенджер и прокси ApiService до await
     final messenger = ScaffoldMessenger.of(context);
     final api = Provider.of<ApiService>(context, listen: false);
 
@@ -65,41 +63,50 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Удалить принтер'),
-        content:
-            Text('Вы уверены, что хотите удалить принтер №${printer.number}?'),
+        content: Text('Вы уверены, что хотите удалить принтер №${printer.number}?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Отмена')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Удалить')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена', style: TextStyle(color: Colors.blueAccent)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Удалить'),
+          ),
         ],
       ),
     );
 
-    if (!mounted) return; // ← проверка, что State всё ещё в дереве
-    if (confirmed == true) {
-      try {
-        await api.deletePrinter(printer.id);
-        _refreshPrinters();
-      } catch (e) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Ошибка удаления: ${e.toString()}')),
-        );
-      }
+    if (!mounted || confirmed != true) return;
+
+    try {
+      await api.deletePrinter(printer.id);
+      _refreshPrinters();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Ошибка удаления: ${e.toString()}')),
+      );
     }
   }
 
   void _onPrinterLongPress(Printer printer) {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.edit),
+              leading: const Icon(Icons.edit, color: Colors.blueAccent),
               title: const Text('Редактировать'),
               onTap: () {
                 Navigator.pop(context);
@@ -107,7 +114,7 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete),
+              leading: const Icon(Icons.delete, color: Colors.redAccent),
               title: const Text('Удалить'),
               onTap: () {
                 Navigator.pop(context);
@@ -130,13 +137,15 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Список принтеров'),
+        title: const Text('Список принтеров', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.blueAccent,
+        elevation: 4,
         actions: [
           FutureBuilder<List<Printer>>(
             future: _futurePrinters,
             builder: (context, snapshot) {
               return IconButton(
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add, color: Colors.white),
                 tooltip: 'Добавить принтер',
                 onPressed: snapshot.hasData
                     ? () => _navigateToAddPrinter(snapshot.data!)
@@ -146,80 +155,134 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Printer>>(
-        future: _futurePrinters,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Ошибка загрузки принтеров: ${snapshot.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _refreshPrinters,
-                    child: const Text('Попробовать снова'),
-                  ),
-                ],
-              ),
-            );
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Нет данных о принтерах'));
-          }
-
-          final printers = snapshot.data!;
-
-          return RefreshIndicator(
-            onRefresh: _refreshPrinters,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(12),
-              itemCount: printers.length,
-              itemBuilder: (context, index) {
-                final p = printers[index];
-                return GestureDetector(
-                  onLongPress: () => _onPrinterLongPress(p),
-                  child: Card(
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _row('№', p.number.toString()),
-                          _row('Модель', p.modelEnum.name),
-                          _row('Статус', p.statusText),
-                          _row('Адрес', '${p.ip}:${p.port}'),
-                          if (p.rm.trim().isNotEmpty) _row('', p.rm),
-                        ],
-                      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blueGrey, Colors.white],
+          ),
+        ),
+        child: FutureBuilder<List<Printer>>(
+          future: _futurePrinters,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+            } else if (snapshot.hasError) {
+              return SingleChildScrollView(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 60, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Ошибка загрузки принтеров: ${snapshot.error}',
+                          style: const TextStyle(fontSize: 16, color: Colors.black87),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _refreshPrinters,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            foregroundColor: Colors.white,
+                            elevation: 2,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Попробовать снова'),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
+                ),
+              );
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(
+                child: Text(
+                  'Нет данных о принтерах',
+                  style: TextStyle(fontSize: 18, color: Colors.black54),
+                ),
+              );
+            }
 
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (label.isNotEmpty)
-            Text(
-              '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
+            final printers = snapshot.data!;
+
+            return RefreshIndicator(
+              onRefresh: _refreshPrinters,
+              color: Colors.blueAccent,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(12),
+                itemCount: printers.length,
+                itemBuilder: (context, index) {
+                  final p = printers[index];
+                  return GestureDetector(
+                    onLongPress: () => _onPrinterLongPress(p),
+                    child: Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.print, color: Colors.blueAccent),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '№${p.number}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Модель: ${p.modelEnum.name}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Адрес: ${p.ip}:${p.port}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            if (p.rm.trim().isNotEmpty)
+                              Row(
+                                children: [
+                                  const Icon(Icons.linear_scale, size: 16, color: Colors.blueAccent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      p.rm,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (p.rm.trim().isNotEmpty) const SizedBox(height: 4),
+                            Text(
+                              'Статус: ${p.statusText}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }

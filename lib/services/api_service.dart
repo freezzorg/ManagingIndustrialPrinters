@@ -20,37 +20,30 @@ class ApiService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final savedUrl = prefs.getString(_prefsBaseUrlKey);
     if (savedUrl != null && savedUrl.isNotEmpty) {
-      _baseUrl = savedUrl;
+      _baseUrl = savedUrl.startsWith('http://') ? savedUrl : 'http://$savedUrl';
       notifyListeners();
     }
   }
 
   Future<void> updateBaseUrl(String newUrl) async {
-    _baseUrl = newUrl;
-    notifyListeners();
-
+    final trimmedUrl = newUrl.trim();
+    _baseUrl = trimmedUrl.startsWith('http://') ? trimmedUrl : 'http://$trimmedUrl';
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsBaseUrlKey, newUrl);
+    await prefs.setString(_prefsBaseUrlKey, _baseUrl);
+    notifyListeners();
   }
 
-  /// Приводит данные принтера к корректному виду:
-  /// - для пустого или all-zero UID устанавливает uid=all-zero, rm='' и isWorking=false
-  /// - для любого другого UID оставляет rm и isWorking как есть (или isWorking=true по умолчанию)
   Map<String, dynamic> _normalizePrinterData(Map<String, dynamic> data) {
     final rawUid = data['uid']?.toString().trim().toLowerCase() ?? '';
     final isUidEmpty = rawUid.isEmpty || rawUid == _zeroUuid;
-
     return {
       'id': data['id'] ?? 0,
       'number': data['number'],
       'model': data['model'],
       'ip': data['ip'],
       'port': data['port'],
-      // для пустого UID храним all-zero строку
       'uid': isUidEmpty ? _zeroUuid : rawUid,
-      // RM линии — пустое для пустого UID, иначе переданное значение
       'rm': isUidEmpty ? '' : data['rm'],
-      // Статус — 0 (не в работе) при пустом UID, иначе переданный или 1 (в работе) по умолчанию
       'status': isUidEmpty ? false : (data['status'] ?? true),
     };
   }
@@ -128,7 +121,6 @@ class ApiService extends ChangeNotifier {
   }
 
   Future<void> addPrinter(Map<String, dynamic> printerData) async {
-    // Нормализуем данные перед отправкой
     final printer = _normalizePrinterData(printerData);
 
     final body = jsonEncode({
@@ -156,7 +148,6 @@ class ApiService extends ChangeNotifier {
   }
 
   Future<void> updatePrinter(Map<String, dynamic> printerData) async {
-    // Нормализуем данные перед отправкой
     final printer = _normalizePrinterData(printerData);
 
     final body = jsonEncode({
