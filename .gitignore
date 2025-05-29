@@ -9,7 +9,6 @@
 *.idea/
 
 # Dart/Flutter
-android/
 build/
 .pub/
 .dart_tool/
