@@ -44,7 +44,7 @@ class SettingsScreen extends StatelessWidget {
                   trailing: Switch(
                     value: themeProvider.isDarkMode,
                     onChanged: (value) => themeProvider.toggleTheme(value),
-                    activeColor: Colors.blueAccent,
+                    activeThumbColor: Colors.blueAccent,
                   ),
                 ),
               ),

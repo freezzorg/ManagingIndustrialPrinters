@@ -150,7 +150,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.devices, color: Colors.blueAccent),
                     title: DropdownButtonFormField<PrinterModel>(
-                      value: _selectedModel,
+                      initialValue: _selectedModel,
                       decoration: const InputDecoration(
                         labelText: 'Модель принтера',
                         border: InputBorder.none,
@@ -267,7 +267,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.power_settings_new, color: Colors.blueAccent),
                     title: DropdownButtonFormField<bool>(
-                      value: _isWorking,
+                      initialValue: _isWorking,
                       decoration: const InputDecoration(
                         labelText: 'Статус принтера',
                         border: InputBorder.none,
