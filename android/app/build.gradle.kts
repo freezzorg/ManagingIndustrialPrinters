@@ -9,14 +9,18 @@ if (keystorePropertiesFile.exists()) {
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "kz.kcep.mip"
-	compileSdk = 35 // нужно для mobile_scanner
+	compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 
     kotlin {
         jvmToolchain(17)
@@ -46,18 +50,16 @@ android {
 
     defaultConfig {
         applicationId = "kz.kcep.mip"
-        minSdk = 21
-        targetSdk = 29 // <= под Android 10
+        minSdk = 24
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 		multiDexEnabled = true
 
         ndk {
-            abiFilters.clear()
-            abiFilters.add("armeabi-v7a")
-            abiFilters.add("arm64-v8a")
-            abiFilters.add("x86")
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86"))
         }
+
     }
 	
 	buildTypes {
@@ -65,6 +67,7 @@ android {
             isMinifyEnabled = false
 			isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
+            matchingFallbacks.add("release")
         }
     }
 	
@@ -72,9 +75,15 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+    dependenciesInfo {
+        includeInApk = true
+        includeInBundle = true
+    }
 	
 	dependencies {
 		implementation("androidx.multidex:multidex:2.0.1")
+        implementation("androidx.core:core-ktx:1.12.0")
 	}
 }
 

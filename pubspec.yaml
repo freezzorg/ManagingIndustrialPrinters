@@ -7,12 +7,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  mobile_scanner: ^7.0.0
-  http: ^1.2.0
-  provider: ^6.1.2
-  cupertino_icons: ^1.0.2
-  shared_preferences: ^2.0.6
-  device_info_plus: ^10.0.1
+  flutter_datawedge: ^3.2.0      # Для устройств с DataWedge (Zebra и некоторые Urovo)
+  mobile_scanner: ^7.0.1         # Обновляем до последней версии для сканирования камерой
+  path_provider: ^2.1.3          # Для работы с файловой системой (логирование)
+  share_plus: ^11.1.0            # Для отправки логов
+  provider: ^6.1.2               # Для управления состоянием
+  http: ^1.2.0                   # Для сетевых запросов
+  shared_preferences: ^2.0.6     # Для хранения настроек
+  cupertino_icons: ^1.0.2        # Базовые иконки
+  device_info_plus: ^11.5.0      # Для определения типа устройства
 
 flutter:
   uses-material-design: true
