@@ -166,8 +166,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (code.isEmpty || processing) return;
 
     setState(() {
-      if (printerData == null || (printerData != null && isPrinterBound == false)) {
-        // Scanning for printer
+      if (printerData == null) {
+        // Scanning for printer (initial state)
         try {
           final printerInfo = _parsePrinterInfo(code);
           printerData = code;
@@ -178,10 +178,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
           _showMessage("Неверный QR-код принтера");
           scannedData = 'Ошибка сканирования принтера';
         }
+      } else if (printerData != null && isPrinterBound == false) {
+        // Printer scanned for unbinding, no further scan expected here.
+        // This state should lead to unbind action, not another scan.
+        _showMessage("Принтер готов к отвязке. Нажмите кнопку 'Отвязать'.");
       } else if (printerData != null && isPrinterBound == true && lineData == null) {
-        // Scanning for line
-        lineData = code;
-        scannedData = 'Линия отсканирована: ${_parseLineName(code)}';
+        // Printer scanned for binding, now expecting line QR code
+        try {
+          // Attempt to parse as a printer QR code to detect incorrect scan
+          _parsePrinterInfo(code);
+          _showMessage("Неверный QR-код линии. Отсканируйте QR-код линии.");
+          // Do not update state, remain in "waiting for line" state
+        } catch (e) {
+          // If it's not a printer QR code, assume it's a line QR code
+          lineData = code;
+          scannedData = 'Линия отсканирована: ${_parseLineName(code)}';
+        }
       }
     });
     // For camera scanner, stop after a scan
@@ -218,14 +230,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  Widget _getScanButtonChild() {
-    if (printerData == null) {
-      return const Text('Сканировать принтер');
-    } else if (printerData != null && isPrinterBound == true && lineData == null) {
-      return const Text('Сканировать линию');
-    }
-    return const Text('Сканировать');
-  }
 
   String _parseLineName(String qr) {
     final parts = qr.split(',');
@@ -388,28 +392,36 @@ class _ScannerScreenState extends State<ScannerScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void Function()? _getActionButtonOnPressed() {
+  Widget _getMainButtonChild() {
+    if (processing) {
+      return const CircularProgressIndicator(color: Colors.white);
+    } else if (printerData == null) {
+      return const Text('Сканировать принтер');
+    } else if (printerData != null && isPrinterBound == false) {
+      return const Text('Отвязать');
+    } else if (printerData != null && isPrinterBound == true && lineData == null) {
+      return const Text('Сканировать линию');
+    } else if (printerData != null && isPrinterBound == true && lineData != null) {
+      return const Text('Привязать');
+    }
+    return const Text('Действие'); // Fallback, should not be reached
+  }
+
+  void Function()? _getMainButtonOnPressed() {
     if (processing) return null;
-    if (printerData != null && isPrinterBound == false) {
+    if (printerData == null) {
+      return _deviceType == DeviceType.unknown ? _startCameraScan : null; // Hardware scanner auto-scans
+    } else if (printerData != null && isPrinterBound == false) {
       return _unbindPrinter;
+    } else if (printerData != null && isPrinterBound == true && lineData == null) {
+      return _deviceType == DeviceType.unknown ? _startCameraScan : null; // Hardware scanner auto-scans
     } else if (printerData != null && isPrinterBound == true && lineData != null) {
       return _bindPrinter;
     }
     return null;
   }
 
-  Widget _getActionButtonChild() {
-    if (processing) {
-      return const CircularProgressIndicator(color: Colors.white);
-    } else if (printerData != null && isPrinterBound == false) {
-      return const Text('Отвязать');
-    } else if (printerData != null && isPrinterBound == true && lineData != null) {
-      return const Text('Привязать');
-    }
-    return const Text('Действие недоступно');
-  }
-
-  Color? _getActionButtonColor() {
+  Color? _getMainButtonColor() {
     if (processing) {
       return Colors.grey;
     } else if (printerData != null && isPrinterBound == false) {
@@ -417,14 +429,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
     } else if (printerData != null && isPrinterBound == true && lineData != null) {
       return Colors.green; // Для "Привязать"
     }
-    return Colors.grey;
+    return Colors.blueAccent; // Для "Сканировать принтер" и "Сканировать линию"
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // title: Text('Сканер ${_deviceType.name.toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Привязка/Отвязка принтера', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.blueAccent,
         elevation: 4,
         actions: [
@@ -522,35 +535,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          if (_deviceType == DeviceType.unknown)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.qr_code_scanner),
-                                    label: _getScanButtonChild(),
-                                    onPressed: _startCameraScan,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blueAccent,
-                                      foregroundColor: Colors.white,
-                                      elevation: 2,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          if (_deviceType == DeviceType.unknown) const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _getActionButtonOnPressed(),
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.qr_code_scanner),
+                                  label: _getMainButtonChild(),
+                                  onPressed: _getMainButtonOnPressed(),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: _getActionButtonColor(),
+                                    backgroundColor: _getMainButtonColor(),
                                     foregroundColor: Colors.white,
                                     elevation: 2,
                                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -558,7 +551,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: _getActionButtonChild(),
                                 ),
                               ),
                             ],
