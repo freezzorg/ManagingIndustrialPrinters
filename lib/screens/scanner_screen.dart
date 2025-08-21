@@ -424,7 +424,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Сканер ${_deviceType.name.toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        // title: Text('Сканер ${_deviceType.name.toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.blueAccent,
         elevation: 4,
         actions: [
@@ -452,7 +452,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           children: [
             Column(
               children: [
-                if (_deviceType == DeviceType.unknown) // Show camera for unknown devices
+                if (_deviceType == DeviceType.unknown)
                   Expanded(
                     flex: 3,
                     child: Container(
@@ -490,24 +490,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                   ),
                 Expanded(
-                  flex: _deviceType == DeviceType.unknown ? 2 : 1, // Adjust flex based on scanner type
+                  flex: _deviceType == DeviceType.unknown ? 2 : 1,
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            scannedData,
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            deviceInfoText,
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
-                            textAlign: TextAlign.center,
-                          ),
+                          // Text(
+                          //   scannedData,
+                          //   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          //   textAlign: TextAlign.center,
+                          // ),
+                          // const SizedBox(height: 10),
+                          // Text(
+                          //   deviceInfoText,
+                          //   style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          //   textAlign: TextAlign.center,
+                          // ),
                           const SizedBox(height: 12),
                           Card(
                             elevation: 4,
@@ -533,7 +533,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          if (_deviceType == DeviceType.unknown) // Show scan button only for camera
+                          if (_deviceType == DeviceType.unknown)
                             Row(
                               children: [
                                 Expanded(
