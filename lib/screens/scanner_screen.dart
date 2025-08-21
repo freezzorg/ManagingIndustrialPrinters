@@ -23,7 +23,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   final MobileScannerController cameraController = MobileScannerController(autoStart: false);
 
   // For hardware scanning (Zebra/Urovo)
-  late StreamSubscription<dynamic> _scanSubscription;
+  StreamSubscription<dynamic>? _scanSubscription;
   datawedge.FlutterDataWedge? _dataWedge;
   static const scanChannel = EventChannel('com.symbol.datawedge/scan'); // For Urovo
 
@@ -158,10 +158,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     try {
       if (_deviceType == DeviceType.zebra && _dataWedge != null) {
         await _dataWedge!.enableScanner(false);
-      } else if (_deviceType == DeviceType.urovo && _scanSubscription != null) {
+      } else if (_deviceType == DeviceType.urovo) {
         // For Urovo, we just cancel the subscription to stop listening
         // There's no explicit 'disable' method like Zebra's DataWedge
-        _scanSubscription.cancel();
+        _scanSubscription?.cancel();
       }
       setState(() => isScannerEnabled = false);
     } catch (e) {
@@ -211,7 +211,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   @override
   void dispose() {
-    _scanSubscription.cancel();
+    _scanSubscription?.cancel();
     _disableScanner();
     cameraController.dispose();
     super.dispose();
