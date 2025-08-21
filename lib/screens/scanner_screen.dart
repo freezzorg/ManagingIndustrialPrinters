@@ -32,6 +32,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   DeviceType _deviceType = DeviceType.unknown;
   dynamic _deviceInfo;
   String deviceInfoText = 'Определение устройства...';
+  bool _useCameraScanner = false; // New state variable for camera/hardware scanner toggle
 
   String? lineData;
   String? printerData;
@@ -111,11 +112,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Future<void> _initScanner() async {
     try {
       if (_deviceType == DeviceType.zebra) {
+        _useCameraScanner = false;
         await _initZebraScanner();
       } else if (_deviceType == DeviceType.urovo) {
+        _useCameraScanner = false; // Default to hardware scanner for Urovo
         await _initUrovoScanner();
       } else {
-        // For unknown devices, use camera scanner
+        _useCameraScanner = true; // Default to camera for unknown devices
         setState(() => scannedData = 'Используется камера для сканирования');
         // No explicit init needed for mobile_scanner beyond controller creation
       }
@@ -155,6 +158,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     try {
       if (_deviceType == DeviceType.zebra && _dataWedge != null) {
         await _dataWedge!.enableScanner(false);
+      } else if (_deviceType == DeviceType.urovo && _scanSubscription != null) {
+        // For Urovo, we just cancel the subscription to stop listening
+        // There's no explicit 'disable' method like Zebra's DataWedge
+        _scanSubscription.cancel();
       }
       setState(() => isScannerEnabled = false);
     } catch (e) {
@@ -197,7 +204,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
     });
     // For camera scanner, stop after a scan
-    if (_deviceType == DeviceType.unknown) {
+    if (_useCameraScanner) {
       cameraController.stop();
     }
   }
@@ -211,7 +218,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _startCameraScan() {
-    if (_deviceType != DeviceType.unknown) return; // Only for camera devices
+    if (!_useCameraScanner) return; // Only if camera is selected
     setState(() {
       scannedData = 'Сканирование камерой...';
     });
@@ -410,11 +417,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void Function()? _getMainButtonOnPressed() {
     if (processing) return null;
     if (printerData == null) {
-      return _deviceType == DeviceType.unknown ? _startCameraScan : null; // Hardware scanner auto-scans
+      return _useCameraScanner ? _startCameraScan : null; // Hardware scanner auto-scans
     } else if (printerData != null && isPrinterBound == false) {
       return _unbindPrinter;
     } else if (printerData != null && isPrinterBound == true && lineData == null) {
-      return _deviceType == DeviceType.unknown ? _startCameraScan : null; // Hardware scanner auto-scans
+      return _useCameraScanner ? _startCameraScan : null; // Hardware scanner auto-scans
     } else if (printerData != null && isPrinterBound == true && lineData != null) {
       return _bindPrinter;
     }
@@ -445,8 +452,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
             icon: const Icon(Icons.settings, color: Colors.white),
             onPressed: () => Navigator.pushNamed(context, '/settings'),
           ),
-          // No toggle button for scanner mode, as it's determined by device type
-          if (_deviceType == DeviceType.unknown)
+          if (_deviceType == DeviceType.urovo)
+            IconButton(
+              icon: Icon(
+                _useCameraScanner ? Icons.qr_code_scanner : Icons.camera_alt,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                setState(() {
+                  _useCameraScanner = !_useCameraScanner;
+                  if (_useCameraScanner) {
+                    _disableScanner(); // Disable hardware scanner
+                    scannedData = 'Используется камера для сканирования';
+                  } else {
+                    _initUrovoScanner(); // Re-initialize Urovo hardware scanner
+                    scannedData = 'Urovo сканер готов к работе';
+                  }
+                });
+              },
+            ),
+          if (_useCameraScanner) // Show torch button only if camera is active
             IconButton(
               icon: const Icon(Icons.flash_on, color: Colors.white),
               onPressed: () => cameraController.toggleTorch(),
@@ -465,7 +490,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           children: [
             Column(
               children: [
-                if (_deviceType == DeviceType.unknown)
+                if (_useCameraScanner) // Show camera preview only if camera is active
                   Expanded(
                     flex: 3,
                     child: Container(
@@ -503,7 +528,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                   ),
                 Expanded(
-                  flex: _deviceType == DeviceType.unknown ? 2 : 1,
+                  flex: _useCameraScanner ? 2 : 1,
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
