@@ -198,8 +198,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
           // Do not update state, remain in "waiting for line" state
         } catch (e) {
           // If it's not a printer QR code, assume it's a line QR code
-          lineData = code;
-          scannedData = 'Линия отсканирована: ${_parseLineName(code)}';
+          if (_isValidLineQr(code)) {
+            lineData = code;
+            scannedData = 'Линия отсканирована: ${_parseLineName(code)}';
+          } else {
+            _showMessage("Неверный QR-код линии. Отсканируйте QR-код линии.");
+            // Do not update state, remain in "waiting for line" state
+          }
         }
       }
     });
@@ -251,6 +256,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
   String _parseLineOpType(String qr) {
     final parts = qr.length > 2 ? qr.split(',') : ['', '', ''];
     return parts.length > 2 ? parts[2].trim() : '';
+  }
+
+  bool _isValidLineQr(String qr) {
+    final parts = qr.split(',');
+    if (parts.length < 3) return false; // Должно быть как минимум 3 части
+
+    final pmPart = parts[0].trim();
+    if (!pmPart.startsWith('PM') || pmPart.length != 4 || !RegExp(r'PM\d{2}').hasMatch(pmPart)) {
+      return false; // Не соответствует формату PMXX
+    }
+
+    final uidPart = parts[1].trim();
+    // Простая проверка на UID (можно улучшить с помощью RegExp для UUID)
+    if (uidPart.length != 36 || !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(uidPart)) {
+      return false; // Не соответствует формату UID
+    }
+
+    return true;
   }
 
   String _buildRm(String qr) {
