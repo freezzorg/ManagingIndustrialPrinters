@@ -497,17 +497,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Text(
-                          //   scannedData,
-                          //   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          //   textAlign: TextAlign.center,
-                          // ),
-                          // const SizedBox(height: 10),
-                          // Text(
-                          //   deviceInfoText,
-                          //   style: const TextStyle(fontSize: 14, color: Colors.grey),
-                          //   textAlign: TextAlign.center,
-                          // ),
                           const SizedBox(height: 12),
                           Card(
                             elevation: 4,
