@@ -2,7 +2,7 @@
 # Managing Industrial Printers (mip)
 
 ### _Android-приложение управления базой промышленных принтеров сервиса PrintComm_
-> Проект создан при помощи ~~смекалки и деатомайзера 7-й серии~~ ChatGPT, Grok, Windsurf.
+> Проект создан при помощи ~~смекалки и деатомайзера 7-й серии~~ нейросетей.
  
 ## Структура проекта
 ```markdown
@@ -29,11 +29,43 @@ Managing Industrial Printers
     ├── app_icon_foreground.png         # Иконка приложения
     └── app_icon_background.png         # Фон приложения
 ```
+## Информация о проекте
 - Приложение управляет базой промышленных принтеров с помощью QR-кодов на andriod-устройствах.
   - На ТСД (терминал сбора данных) с помощью аппаратного сканера;
-  - На обычных смартфонах с помощью камеры .
+  - На обычных смартфонах с помощью камеры.
 - Позволяет:
   - Выводить список принтеров;
   - Добавлять принтер в базу;
   - Удалять принтеры из базы;
   - Редактировать данные принтера.
+- Работа приложения протестирована на:
+  - ТСД Zebra MC33;
+  - ТСД Urovo RT40;
+  - Смартфоне Motorola G84.
+
+## Настройка профилей ТСД
+- ТСД Zebra MC33 (DataWedge):
+  - Настройка профилей:
+    - Название профиля: `MIP`
+    - Associated apps: `kz.kcep.mip.MainActivity`
+    - Barcode input:
+      - Enabled: `Yes`
+      - Scanner selected: `Auto (2D Barcode Imager)`
+    - Intent output:
+      - Enabled: `Yes`
+      - Intent action: `kz.kcep.mip.SCAN_EVENT`
+      - Intent delivery: `Broadcast intent`
+- ТСД Urovo RT40 (ScanWedge):
+  - Настройка профилей:
+    - Название профиля: `MIP`
+    - Associated apps: `kz.kcep.mip.MainActivity`
+    - Barcode input:
+      - Enabled: `Yes`
+    - Вывод со сканера:
+      - Включить: `Yes`
+    - Режим ввода:
+      - Режим вывода: `Intent`
+      - Intent action: `android.intent.ACTION_DECODE_DATA`
+      - Intent string extra: `barcode_string`
+      - Intent raw extra: `barcode`
+      - Intent delivery: `Broadcast`
