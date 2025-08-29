@@ -163,7 +163,16 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                                 child: Text(m.name, style: TextStyle(color: textColor)),
                               ))
                           .toList(),
-                      onChanged: (v) => setState(() => _selectedModel = v),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedModel = v;
+                          if (_selectedModel != null) {
+                            portController.text = _selectedModel!.port;
+                          } else {
+                            portController.clear();
+                          }
+                        });
+                      },
                       validator: (v) => v == null ? 'Выберите модель' : null,
                     ),
                   ),

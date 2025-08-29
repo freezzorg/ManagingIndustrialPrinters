@@ -1,7 +1,7 @@
 enum PrinterModel {
   markemImaje9040,
-  markemImaje9410,
-  markemImaje9450,
+  markemImaje94X0,
+  lmeLaserLmeUf,
   unknown,
 }
 
@@ -10,9 +10,9 @@ extension PrinterModelExtension on PrinterModel {
     switch (this) {
       case PrinterModel.markemImaje9040:
         return 1;
-      case PrinterModel.markemImaje9410:
+      case PrinterModel.markemImaje94X0:
         return 2;
-      case PrinterModel.markemImaje9450:
+      case PrinterModel.lmeLaserLmeUf:
         return 3;
       case PrinterModel.unknown:
         return 9;
@@ -23,12 +23,25 @@ extension PrinterModelExtension on PrinterModel {
     switch (this) {
       case PrinterModel.markemImaje9040:
         return 'Markem Imaje 9040';
-      case PrinterModel.markemImaje9410:
-        return 'Markem Imaje 9410';
-      case PrinterModel.markemImaje9450:
-        return 'Markem Imaje 9450';
+      case PrinterModel.markemImaje94X0:
+        return 'Markem Imaje 94X0';
+      case PrinterModel.lmeLaserLmeUf:
+        return 'LME laser LME-UF';
       case PrinterModel.unknown:
         return 'Неизвестна';
+    }
+  }
+
+  String get port {
+    switch (this) {
+      case PrinterModel.markemImaje9040:
+        return '2101';
+      case PrinterModel.markemImaje94X0:
+        return '2000';
+      case PrinterModel.lmeLaserLmeUf:
+        return '8888';
+      case PrinterModel.unknown:
+        return '0'; // Или другое значение по умолчанию
     }
   }
 
@@ -37,9 +50,9 @@ extension PrinterModelExtension on PrinterModel {
       case 1:
         return PrinterModel.markemImaje9040;
       case 2:
-        return PrinterModel.markemImaje9410;
+        return PrinterModel.markemImaje94X0;
       case 3:
-        return PrinterModel.markemImaje9450;
+        return PrinterModel.lmeLaserLmeUf;
       default:
         return PrinterModel.unknown;
     }
@@ -70,13 +83,13 @@ class Printer {
   factory Printer.fromJson(Map<String, dynamic> json) {
     return Printer(
       id: json['id'] ?? 0,
-      number: json['number'],
-      model: json['model'],
-      ip: json['ip'],
-      port: json['port'],
-      uid: json['uid'],
+      number: json['number'] ?? 0, // Добавлено значение по умолчанию
+      model: json['model'] ?? 9, // Добавлено значение по умолчанию (unknown)
+      ip: json['ip'] ?? '',
+      port: json['port'] ?? '',
+      uid: json['uid'] ?? '00000000-0000-0000-0000-000000000000', // Добавлено значение по умолчанию
       rm: json['rm'] ?? '',
-      status: json['status'],
+      status: json['status'] ?? false, // Добавлено значение по умолчанию
     );
   }
 

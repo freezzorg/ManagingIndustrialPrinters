@@ -38,6 +38,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   String? printerData;
   bool? isPrinterBound;
   bool processing = false;
+  int? _lineNumber; // Для хранения номера линии
 
   @override
   void initState() {
@@ -200,6 +201,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           // If it's not a printer QR code, assume it's a line QR code
           if (_isValidLineQr(code)) {
             lineData = code;
+            _lineNumber = _parseLineNumber(code); // Сохраняем номер линии
             scannedData = 'Линия отсканирована: ${_parseLineName(code)}';
           } else {
             _showMessage("Неверный QR-код линии. Отсканируйте QR-код линии.");
@@ -258,6 +260,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return parts.length > 2 ? parts[2].trim() : '';
   }
 
+  int _parseLineNumber(String qr) {
+    final parts = qr.split(',');
+    if (parts.isEmpty) throw const FormatException('Неверный формат QR-кода линии');
+    final pmPart = parts[0].trim();
+    if (!pmPart.startsWith('PM') || pmPart.length != 4) {
+      throw const FormatException('Неверный формат номера линии в QR-коде');
+    }
+    return int.parse(pmPart.substring(2));
+  }
+
   bool _isValidLineQr(String qr) {
     final parts = qr.split(',');
     if (parts.length < 3) return false; // Должно быть как минимум 3 части
@@ -302,14 +314,21 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Printer _parsePrinterInfo(String qr) {
     final parts = qr.split(',');
-    final isWorking = int.parse(parts[4].trim()) == 1;
+    if (parts.length < 3) {
+      throw const FormatException('Неверный формат QR-кода принтера. Ожидается 3 части.');
+    }
+    final number = int.parse(parts[0].trim());
+    final modelCode = int.parse(parts[1].trim());
+    final status = int.parse(parts[2].trim()) == 1;
+
+    // IP и порт будут определены позже, после сканирования линии
     return Printer(
       id: 0,
-      number: int.parse(parts[0].trim()),
-      model: int.parse(parts[1].trim()),
-      ip: parts[2].trim(),
-      port: parts[3].trim(),
-      status: isWorking,
+      number: number,
+      model: modelCode,
+      ip: '', // Будет заполнено после сканирования линии
+      port: '', // Будет заполнено после сканирования линии
+      status: status,
       uid: '',
       rm: '',
     );
@@ -353,12 +372,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
           return;
         }
       }
+      final ipAddress = '10.1.${_lineNumber!}.7';
+      final port = PrinterModelExtension.fromCode(printerInfo.model).port;
+
       final payload = {
         'id': serverPrinter.id,
         'number': printerInfo.number,
         'model': printerInfo.model,
-        'ip': printerInfo.ip,
-        'port': printerInfo.port,
+        'ip': ipAddress,
+        'port': port,
         'uid': lineUid,
         'rm': lineRm,
         'status': true,
@@ -387,8 +409,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
         'id': serverPrinter.id,
         'number': printerInfo.number,
         'model': printerInfo.model,
-        'ip': printerInfo.ip,
-        'port': printerInfo.port,
+        'ip': '', // Сбрасываем IP при отвязке
+        'port': '', // Сбрасываем порт при отвязке
         'uid': '00000000-0000-0000-0000-000000000000',
         'rm': '',
         'status': false,
@@ -561,7 +583,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           const SizedBox(height: 12),
                           Card(
                             elevation: 4,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
                             child: ListTile(
                               leading: const Icon(Icons.print, color: Colors.blueAccent),
                               title: Text(
@@ -573,7 +595,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           const SizedBox(height: 8),
                           Card(
                             elevation: 4,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
                             child: ListTile(
                               leading: const Icon(Icons.linear_scale, color: Colors.blueAccent),
                               title: Text(
