@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert'; // Добавлен импорт для работы с JSON
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart' as datawedge;
@@ -177,12 +178,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
       if (_scannedPrinterModelCode == null) {
         // Scanning for printer (initial state)
         try {
-          final parsedModelCode = _parsePrinterModelCode(code);
-          final parsedStatus = _parsePrinterStatus(code);
-          _scannedPrinterModelCode = parsedModelCode;
-          isPrinterBound = parsedStatus; // Initial status from QR code
+          final printerQrData = _parsePrinterQrCode(code);
+          _scannedPrinterModelCode = printerQrData['model'];
+          isPrinterBound = printerQrData['status']; // Initial status from QR code
           lineData = null;
-          scannedData = 'Принтер отсканирован: Модель ${PrinterModelExtension.fromCode(parsedModelCode).name}';
+          scannedData = 'Принтер отсканирован: Модель ${PrinterModelExtension.fromCode(_scannedPrinterModelCode!).name}';
         } catch (e) {
           _showMessage("Неверный QR-код принтера");
           scannedData = 'Ошибка сканирования принтера';
@@ -195,7 +195,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         // Printer scanned for binding, now expecting line QR code
         try {
           // Attempt to parse as a printer QR code to detect incorrect scan
-          _parsePrinterModelCode(code); // Just to check if it's a printer QR again
+          _parsePrinterQrCode(code); // Just to check if it's a printer QR again
           _showMessage("Неверный QR-код линии. Отсканируйте QR-код линии.");
           // Do not update state, remain in "waiting for line" state
         } catch (e) {
@@ -246,25 +246,47 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
 
+  Map<String, dynamic> _parseLineQrCode(String qr) {
+    try {
+      final json = jsonDecode(qr);
+      if (json is! Map<String, dynamic> || !json.containsKey('rm') || !json.containsKey('uid')) {
+        throw const FormatException('Неверный формат JSON для QR-кода линии. Ожидаются поля "rm" и "uid".');
+      }
+      return json;
+    } catch (e) {
+      throw FormatException('Неверный формат QR-кода линии: $e');
+    }
+  }
+
   String _parseLineName(String qr) {
-    final parts = qr.split(',');
+    final lineQrData = _parseLineQrCode(qr);
+    final rm = lineQrData['rm'] as String;
+    final parts = rm.split('.');
     return parts.isNotEmpty ? parts[0].trim() : '';
   }
 
   String _parseLineUid(String qr) {
-    final parts = qr.length > 1 ? qr.split(',') : ['', ''];
-    return parts.length > 1 ? parts[1].trim() : '';
+    final lineQrData = _parseLineQrCode(qr);
+    return lineQrData['uid'] as String;
   }
 
-  String _parseLineOpType(String qr) {
-    final parts = qr.length > 2 ? qr.split(',') : ['', '', ''];
-    return parts.length > 2 ? parts[2].trim() : '';
-  }
+  // _parseLineOpType больше не нужен, так как rm уже содержит полное имя
+  // int _parseLineNumber(String qr) {
+  //   final lineQrData = _parseLineQrCode(qr);
+  //   final rm = lineQrData['rm'] as String;
+  //   final parts = rm.split('.');
+  //   if (parts.isEmpty) throw const FormatException('Неверный формат QR-кода линии');
+  //   final pmPart = parts[0].trim();
+  //   if (!pmPart.startsWith('PM') || pmPart.length != 4) {
+  //     throw const FormatException('Неверный формат номера линии в QR-коде');
+  //   }
+  //   return int.parse(pmPart.substring(2));
+  // }
 
   int _parseLineNumber(String qr) {
-    final parts = qr.split(',');
-    if (parts.isEmpty) throw const FormatException('Неверный формат QR-кода линии');
-    final pmPart = parts[0].trim();
+    final lineQrData = _parseLineQrCode(qr);
+    final rm = lineQrData['rm'] as String;
+    final pmPart = rm.split('.')[0].trim();
     if (!pmPart.startsWith('PM') || pmPart.length != 4) {
       throw const FormatException('Неверный формат номера линии в QR-коде');
     }
@@ -272,49 +294,52 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   bool _isValidLineQr(String qr) {
-    final parts = qr.split(',');
-    if (parts.length < 3) return false; // Должно быть как минимум 3 части
+    try {
+      final lineQrData = _parseLineQrCode(qr);
+      final rm = lineQrData['rm'] as String;
+      final uid = lineQrData['uid'] as String;
 
-    final pmPart = parts[0].trim();
-    if (!pmPart.startsWith('PM') || pmPart.length != 4 || !RegExp(r'PM\d{2}').hasMatch(pmPart)) {
-      return false; // Не соответствует формату PMXX
+      final pmPart = rm.split('.')[0].trim();
+      if (!pmPart.startsWith('PM') || pmPart.length != 4 || !RegExp(r'PM\d{2}').hasMatch(pmPart)) {
+        return false; // Не соответствует формату PMXX
+      }
+
+      // Проверка на UID (можно улучшить с помощью RegExp для UUID)
+      if (uid.length != 36 || !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(uid)) {
+        return false; // Не соответствует формату UID
+      }
+
+      return true;
+    } catch (e) {
+      return false;
     }
-
-    final uidPart = parts[1].trim();
-    // Простая проверка на UID (можно улучшить с помощью RegExp для UUID)
-    if (uidPart.length != 36 || !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(uidPart)) {
-      return false; // Не соответствует формату UID
-    }
-
-    return true;
   }
 
   String _buildRm(String qr) {
-    final name = _parseLineName(qr);
-    final opType = _parseLineOpType(qr);
-    return '$name. $opType';
+    final lineQrData = _parseLineQrCode(qr);
+    return lineQrData['rm'] as String;
   }
 
   String _getDisplayLineName(String? data) {
     if (data == null) return "не отсканировано";
-    final name = _parseLineName(data);
-    return name;
+    try {
+      final lineQrData = _parseLineQrCode(data);
+      return lineQrData['rm'] as String;
+    } catch (e) {
+      return "неверный формат линии";
+    }
   }
 
-  int _parsePrinterModelCode(String qr) {
-    final parts = qr.split(',');
-    if (parts.length < 2) {
-      throw const FormatException('Неверный формат QR-кода принтера. Ожидается 2 части (модель, статус).');
+  Map<String, dynamic> _parsePrinterQrCode(String qr) {
+    try {
+      final json = jsonDecode(qr);
+      if (json is! Map<String, dynamic> || !json.containsKey('model') || !json.containsKey('status')) {
+        throw const FormatException('Неверный формат JSON для QR-кода принтера. Ожидаются поля "model" и "status".');
+      }
+      return json;
+    } catch (e) {
+      throw FormatException('Неверный формат QR-кода принтера: $e');
     }
-    return int.parse(parts[0].trim());
-  }
-
-  bool _parsePrinterStatus(String qr) {
-    final parts = qr.split(',');
-    if (parts.length < 2) {
-      throw const FormatException('Неверный формат QR-кода принтера. Ожидается 2 части (модель, статус).');
-    }
-    return int.parse(parts[1].trim()) == 1;
   }
 
   Future<RebindAction> _showRebindDialog(String currentRm) async {
