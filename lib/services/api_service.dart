@@ -38,7 +38,6 @@ class ApiService extends ChangeNotifier {
     final isUidEmpty = rawUid.isEmpty || rawUid == _zeroUuid;
     return {
       'id': data['id'] ?? 0,
-      'number': data['number'],
       'model': data['model'],
       'ip': data['ip'],
       'port': data['port'],
@@ -48,14 +47,15 @@ class ApiService extends ChangeNotifier {
     };
   }
 
-  Future<Printer?> getPrinterByIdOrUid({int? id, String? uid}) async {
-    if (id == null && uid == null) {
-      throw ArgumentError('Необходимо передать либо id, либо uid принтера');
+  Future<Printer?> getPrinterByIdOrUid({int? id, String? uid, String? ip}) async {
+    if (id == null && uid == null && ip == null) {
+      throw ArgumentError('Необходимо передать либо id, либо uid, либо ip принтера');
     }
 
     final printerQuery = <String, dynamic>{};
     if (id != null) printerQuery['id'] = id;
     if (uid != null) printerQuery['uid'] = uid;
+    if (ip != null) printerQuery['ip'] = ip;
 
     final body = jsonEncode({
       'cmdtype': 'requesttodb',

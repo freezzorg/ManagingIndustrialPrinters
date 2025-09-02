@@ -13,7 +13,6 @@ class ManualEntryScreen extends StatefulWidget {
 class _ManualEntryScreenState extends State<ManualEntryScreen> {
   static const _zeroUuid = '00000000-0000-0000-0000-000000000000';
 
-  final numberController = TextEditingController();
   final ipController = TextEditingController();
   final portController = TextEditingController();
   final uidController = TextEditingController();
@@ -34,15 +33,12 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
       if (args is Printer) {
         _isEditMode = true;
         _existingPrinter = args;
-        numberController.text = args.number.toString();
         ipController.text = args.ip;
         portController.text = args.port;
         uidController.text = args.uid;
         rmController.text = args.rm;
         _selectedModel = PrinterModelExtension.fromCode(args.model);
         _isWorking = args.status;
-      } else if (args is int) {
-        numberController.text = args.toString();
       }
       _isInitialized = true;
     }
@@ -117,33 +113,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
             key: _formKey,
             child: Column(
               children: [
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: ListTile(
-                    leading: const Icon(Icons.print, color: Colors.blueAccent),
-                    title: TextFormField(
-                      controller: numberController,
-                      enabled: !_isEditMode,
-                      decoration: const InputDecoration(
-                        labelText: 'Номер принтера',
-                        border: InputBorder.none,
-                      ),
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(color: textColor),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Введите номер';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Неверный номер';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -317,7 +286,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                     final uid = rawUid.isEmpty ? _zeroUuid : rawUid;
 
                     final data = {
-                      'number': int.parse(numberController.text),
                       'model': _selectedModel!.code,
                       'ip': ipController.text.trim(),
                       'port': portController.text.trim(),
@@ -364,7 +332,6 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
   @override
   void dispose() {
-    numberController.dispose();
     ipController.dispose();
     portController.dispose();
     uidController.dispose();

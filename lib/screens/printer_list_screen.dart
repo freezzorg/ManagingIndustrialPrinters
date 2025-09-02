@@ -32,12 +32,10 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
     });
   }
 
-  Future<void> _navigateToAddPrinter(List<Printer> currentPrinters) async {
-    final nextNumber = _getNextPrinterNumber(currentPrinters);
+  Future<void> _navigateToAddPrinter() async {
     final result = await Navigator.pushNamed(
       context,
       '/manual-entry',
-      arguments: nextNumber,
     );
     if (result == true) {
       _refreshPrinters();
@@ -63,7 +61,7 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Удалить принтер'),
-        content: Text('Вы уверены, что хотите удалить принтер №${printer.number}?'),
+        content: Text('Вы уверены, что хотите удалить принтер с ID ${printer.id}?'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         actions: [
           TextButton(
@@ -127,11 +125,6 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
     );
   }
 
-  int _getNextPrinterNumber(List<Printer> printers) {
-    if (printers.isEmpty) return 1;
-    final numbers = printers.map((p) => p.number);
-    return numbers.reduce((a, b) => a > b ? a : b) + 1;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,9 +140,7 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
               return IconButton(
                 icon: const Icon(Icons.add, color: Colors.white),
                 tooltip: 'Добавить принтер',
-                onPressed: snapshot.hasData
-                    ? () => _navigateToAddPrinter(snapshot.data!)
-                    : null,
+                onPressed: () => _navigateToAddPrinter(),
               );
             },
           ),
@@ -236,7 +227,7 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                                 const Icon(Icons.print, color: Colors.blueAccent),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '№${p.number}',
+                                  'ID: ${p.id}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
