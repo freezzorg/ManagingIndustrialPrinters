@@ -422,24 +422,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() => processing = true);
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      final modelCode = _scannedPrinterModelCode!;
       final ipAddress = '10.1.${_lineNumber!}.7'; // IP адрес все еще нужен для поиска
       final serverPrinter = await api.getPrinterByIdOrUid(ip: ipAddress);
 
       if (serverPrinter == null) {
         throw Exception('Принтер не найден на сервере для отвязки');
       }
-      final payload = {
-        'id': serverPrinter.id,
-        'model': modelCode,
-        'ip': '', // Сбрасываем IP при отвязке
-        'port': '', // Сбрасываем порт при отвязке
-        'uid': '00000000-0000-0000-0000-000000000000',
-        'rm': '',
-        'status': false,
-      };
-      await api.updatePrinter(payload);
-      _showMessage('Принтер успешно отвязан');
+      await api.deletePrinter(serverPrinter.id);
+      _showMessage('Принтер успешно удален');
       _reset();
     } catch (e) {
       _showMessage('Ошибка: $e');
