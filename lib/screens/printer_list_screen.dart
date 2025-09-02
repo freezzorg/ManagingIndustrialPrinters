@@ -224,26 +224,24 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.print, color: Colors.blueAccent),
+                                const Icon(Icons.print, color: Colors.blueAccent), // Иконка для модели
                                 const SizedBox(width: 8),
                                 Text(
-                                  'ID: ${p.id}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                                  p.modelEnum.name,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Модель: ${p.modelEnum.name}',
-                              style: const TextStyle(fontSize: 14),
-                            ),
                             const SizedBox(height: 4),
-                            Text(
-                              'Адрес: ${p.ip}:${p.port}',
-                              style: const TextStyle(fontSize: 14),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on, size: 16, color: Colors.blueAccent), // Иконка для адреса
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${p.ip}:${p.port}',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             if (p.rm.trim().isNotEmpty)
@@ -260,9 +258,19 @@ class _PrinterListScreenState extends State<PrinterListScreen> {
                                 ],
                               ),
                             if (p.rm.trim().isNotEmpty) const SizedBox(height: 4),
-                            Text(
-                              'Статус: ${p.statusText}',
-                              style: const TextStyle(fontSize: 14),
+                            Row(
+                              children: [
+                                Icon(
+                                  p.status ? Icons.check_circle_outline : Icons.cancel_outlined, // Иконка для статуса
+                                  size: 16,
+                                  color: p.status ? Colors.green : Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  p.statusText,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
                             ),
                           ],
                         ),

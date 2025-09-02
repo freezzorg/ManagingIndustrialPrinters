@@ -321,7 +321,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   String _getDisplayLineName(String? data) {
-    if (data == null) return "не отсканировано";
+    if (data == null) return "Линия не отсканирована";
     try {
       final lineQrData = _parseLineQrCode(data);
       return lineQrData['rm'] as String;
@@ -600,7 +600,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             child: ListTile(
                               leading: const Icon(Icons.print, color: Colors.blueAccent),
                               title: Text(
-                                'Принтер: ${(_scannedPrinterModelCode != null) ? PrinterModelExtension.fromCode(_scannedPrinterModelCode!).name : "не отсканировано"}',
+                                (_scannedPrinterModelCode != null)
+                                    ? PrinterModelExtension.fromCode(_scannedPrinterModelCode!).name
+                                    : "Принтер не отсканирован",
                                 style: const TextStyle(fontSize: 18),
                               ),
                             ),
@@ -612,7 +614,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             child: ListTile(
                               leading: const Icon(Icons.linear_scale, color: Colors.blueAccent),
                               title: Text(
-                                'Линия: ${_getDisplayLineName(lineData)}',
+                                _getDisplayLineName(lineData),
                                 style: const TextStyle(fontSize: 18),
                               ),
                             ),
