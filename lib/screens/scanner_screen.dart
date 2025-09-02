@@ -404,10 +404,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final serverPrinter = await api.getPrinterByIdOrUid(uid: lineUid);
 
       if (serverPrinter == null) {
-        throw Exception('Принтер не найден на сервере для отвязки по UID линии');
+        _showMessage('Принтер не привязан к этой линии. Отвязка не требуется.');
+        _reset();
+        return;
       }
       await api.deletePrinter(serverPrinter.id);
-      _showMessage('Принтер успешно удален');
+      _showMessage('Принтер успешно отвязан'); // Изменено на "отвязан" для ясности
       _reset();
     } catch (e) {
       _showMessage('Ошибка: $e');
