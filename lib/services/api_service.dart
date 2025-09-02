@@ -9,11 +9,26 @@ class ApiService extends ChangeNotifier {
   static const _zeroUuid = '00000000-0000-0000-0000-000000000000';
 
   String _baseUrl = 'http://10.10.8.21:21010';
+  bool _isInitialized = false; // Новый флаг инициализации
 
   String get baseUrl => _baseUrl;
+  bool get isInitialized => _isInitialized; // Геттер для флага
 
-  ApiService() {
-    _loadBaseUrl();
+  // Приватный конструктор
+  ApiService._internal();
+
+  // Фабричный конструктор для предоставления временного экземпляра (например, для initialData в FutureProvider)
+  factory ApiService.empty() {
+    final apiService = ApiService._internal();
+    apiService._isInitialized = false; // Устанавливаем флаг для временного экземпляра
+    return apiService;
+  }
+
+  // Статический асинхронный метод для создания и инициализации ApiService
+  static Future<ApiService> create() async {
+    final apiService = ApiService._internal();
+    await apiService._loadBaseUrl();
+    return apiService;
   }
 
   Future<void> _loadBaseUrl() async {
@@ -21,7 +36,8 @@ class ApiService extends ChangeNotifier {
     final savedUrl = prefs.getString(_prefsBaseUrlKey);
     if (savedUrl != null && savedUrl.isNotEmpty) {
       _baseUrl = savedUrl.startsWith('http://') ? savedUrl : 'http://$savedUrl';
-      notifyListeners();
+      _isInitialized = true; // Устанавливаем флаг после успешной загрузки
+      // notifyListeners(); // Не вызываем здесь, так как это происходит до привязки к виджетам
     }
   }
 

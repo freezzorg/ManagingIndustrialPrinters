@@ -8,15 +8,39 @@ import 'services/api_service.dart';
 import 'providers/theme_provider.dart';
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ApiService()),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+  runApp(const AppInitializer());
+}
+
+class AppInitializer extends StatelessWidget {
+  const AppInitializer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureProvider<ApiService>(
+      create: (_) => ApiService.create(),
+      initialData: ApiService.empty(), // Предоставляем временный экземпляр
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ],
+        child: Consumer<ApiService>(
+          builder: (context, apiService, child) {
+            // Ждем, пока ApiService будет полностью инициализирован
+            if (!apiService.isInitialized) {
+              return const MaterialApp(
+                home: Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              );
+            }
+            return const MyApp();
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {

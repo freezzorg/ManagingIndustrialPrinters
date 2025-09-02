@@ -187,12 +187,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
           _showMessage("Неверный QR-код принтера");
           scannedData = 'Ошибка сканирования принтера';
         }
-      } else if (_scannedPrinterModelCode != null && isPrinterBound == false) {
-        // Printer scanned for unbinding, no further scan expected here.
-        // This state should lead to unbind action, not another scan.
-        _showMessage("Принтер готов к отвязке. Нажмите кнопку 'Отвязать'.");
-      } else if (_scannedPrinterModelCode != null && isPrinterBound == true && lineData == null) {
-        // Printer scanned for binding, now expecting line QR code
+      } else if (_scannedPrinterModelCode != null && lineData == null) {
+        // Printer scanned, now expecting line QR code for either binding or unbinding
         try {
           // Attempt to parse as a printer QR code to detect incorrect scan
           _parsePrinterQrCode(code); // Just to check if it's a printer QR again
@@ -203,7 +199,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
           if (_isValidLineQr(code)) {
             lineData = code;
             _lineNumber = _parseLineNumber(code); // Сохраняем номер линии
-            scannedData = 'Линия отсканирована: ${_parseLineName(code)}';
+            scannedData =
+                'Линия отсканирована: ${_getDisplayLineName(code)}'; // Используем _getDisplayLineName для полного RM
           } else {
             _showMessage("Неверный QR-код линии. Отсканируйте QR-код линии.");
             // Do not update state, remain in "waiting for line" state
@@ -258,30 +255,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  String _parseLineName(String qr) {
-    final lineQrData = _parseLineQrCode(qr);
-    final rm = lineQrData['rm'] as String;
-    final parts = rm.split('.');
-    return parts.isNotEmpty ? parts[0].trim() : '';
-  }
-
   String _parseLineUid(String qr) {
     final lineQrData = _parseLineQrCode(qr);
     return lineQrData['uid'] as String;
   }
-
-  // _parseLineOpType больше не нужен, так как rm уже содержит полное имя
-  // int _parseLineNumber(String qr) {
-  //   final lineQrData = _parseLineQrCode(qr);
-  //   final rm = lineQrData['rm'] as String;
-  //   final parts = rm.split('.');
-  //   if (parts.isEmpty) throw const FormatException('Неверный формат QR-кода линии');
-  //   final pmPart = parts[0].trim();
-  //   if (!pmPart.startsWith('PM') || pmPart.length != 4) {
-  //     throw const FormatException('Неверный формат номера линии в QR-коде');
-  //   }
-  //   return int.parse(pmPart.substring(2));
-  // }
 
   int _parseLineNumber(String qr) {
     final lineQrData = _parseLineQrCode(qr);
@@ -369,11 +346,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final lineUid = _parseLineUid(lineData!);
       final lineRm = _buildRm(lineData!);
       final modelCode = _scannedPrinterModelCode!;
-      final ipAddress = '10.1.${_lineNumber!}.7';
+      final ipAddress = '10.1.${_lineNumber!}.7'; // IP адрес все еще нужен для добавления/обновления
       final port = PrinterModelExtension.fromCode(modelCode).port;
 
-      // Поиск принтера по IP
-      Printer? serverPrinter = await api.getPrinterByIdOrUid(ip: ipAddress);
+      // Поиск принтера по UID линии
+      Printer? serverPrinter = await api.getPrinterByIdOrUid(uid: lineUid);
 
       if (serverPrinter != null && serverPrinter.status && serverPrinter.rm.isNotEmpty) {
         final action = await _showRebindDialog(serverPrinter.rm);
@@ -384,7 +361,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
 
       if (serverPrinter == null) {
-        // Если принтер не найден, добавляем его
+        // Если принтер не найден по UID линии, добавляем его
         final newPrinterData = {
           'model': modelCode,
           'ip': ipAddress,
@@ -396,7 +373,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         await api.addPrinter(newPrinterData);
         _showMessage('Новый принтер успешно добавлен и привязан');
       } else {
-        // Если принтер найден, обновляем его
+        // Если принтер найден по UID линии, обновляем его
         final payload = {
           'id': serverPrinter.id,
           'model': modelCode,
@@ -422,11 +399,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() => processing = true);
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      final ipAddress = '10.1.${_lineNumber!}.7'; // IP адрес все еще нужен для поиска
-      final serverPrinter = await api.getPrinterByIdOrUid(ip: ipAddress);
+      final lineUid = _parseLineUid(lineData!);
+      // IP адрес больше не нужен для поиска, так как поиск идет по UID линии
+      final serverPrinter = await api.getPrinterByIdOrUid(uid: lineUid);
 
       if (serverPrinter == null) {
-        throw Exception('Принтер не найден на сервере для отвязки');
+        throw Exception('Принтер не найден на сервере для отвязки по UID линии');
       }
       await api.deletePrinter(serverPrinter.id);
       _showMessage('Принтер успешно удален');
@@ -462,10 +440,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return const CircularProgressIndicator(color: Colors.white);
     } else if (_scannedPrinterModelCode == null) {
       return const Text('Сканировать принтер');
-    } else if (_scannedPrinterModelCode != null && isPrinterBound == false) {
-      return const Text('Отвязать');
-    } else if (_scannedPrinterModelCode != null && isPrinterBound == true && lineData == null) {
+    } else if (_scannedPrinterModelCode != null && lineData == null) {
+      // If printer is scanned, but line is not, and it's bound, we need to scan line for rebind.
+      // If printer is scanned, but line is not, and it's unbound, we need to scan line for unbind.
       return const Text('Сканировать линию');
+    } else if (_scannedPrinterModelCode != null && isPrinterBound == false && lineData != null) {
+      return const Text('Отвязать');
     } else if (_scannedPrinterModelCode != null && isPrinterBound == true && lineData != null) {
       return const Text('Привязать');
     }
@@ -476,10 +456,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (processing) return null;
     if (_scannedPrinterModelCode == null) {
       return _useCameraScanner ? _startCameraScan : null; // Hardware scanner auto-scans
-    } else if (_scannedPrinterModelCode != null && isPrinterBound == false) {
-      return _unbindPrinter;
-    } else if (_scannedPrinterModelCode != null && isPrinterBound == true && lineData == null) {
+    } else if (_scannedPrinterModelCode != null && lineData == null) {
       return _useCameraScanner ? _startCameraScan : null; // Hardware scanner auto-scans
+    } else if (_scannedPrinterModelCode != null && isPrinterBound == false && lineData != null) {
+      return _unbindPrinter;
     } else if (_scannedPrinterModelCode != null && isPrinterBound == true && lineData != null) {
       return _bindPrinter;
     }
