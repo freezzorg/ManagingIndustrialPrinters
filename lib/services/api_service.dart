@@ -104,8 +104,8 @@ class ApiService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        if (decoded['response'] == null) {
-          throw Exception('Ответ сервера не содержит данных');
+        if (decoded['response'] == null || decoded['response'] is! List) {
+          return []; // Возвращаем пустой список, если данных нет или они не в формате списка
         }
         final printers = (decoded['response'] as List)
             .map((json) => Printer.fromJson(json))
